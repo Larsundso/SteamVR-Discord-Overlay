@@ -1,0 +1,7 @@
+bin/
+obj/
+*.pdb
+*.user
+.vs/
+*.suo
+vr-discord-overlay-settings.json

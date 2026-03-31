@@ -1,0 +1,17 @@
+{
+  "source": "builtin",
+  "applications": [
+    {
+      "app_key": "vr.discord.vc.overlay",
+      "launch_type": "binary",
+      "binary_path_windows": "VRDiscordOverlay.exe",
+      "is_dashboard_overlay": true,
+      "strings": {
+        "en_us": {
+          "name": "Discord VC Overlay",
+          "description": "Shows Discord voice channel users in VR"
+        }
+      }
+    }
+  ]
+}
