@@ -18,6 +18,7 @@ public class AppSettings
     public int MutedUserThreshold { get; set; } = 5;
 
     public bool AutoStartWithSteamVR { get; set; } = true;
+    public int DiscordPipe { get; set; } = -1; // -1 = auto, 0-9 = specific pipe
 
     public int CardHeight { get; set; } = 52;
     public int CardPadding { get; set; } = 4;

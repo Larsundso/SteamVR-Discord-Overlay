@@ -41,19 +41,25 @@ public class DiscordRpcClient : IDisposable
         _clientSecret = clientSecret;
     }
 
-    public async Task ConnectAsync(string? savedAccessToken = null, CancellationToken ct = default)
+    public int ConnectedPipe { get; private set; } = -1;
+
+    public async Task ConnectAsync(string? savedAccessToken = null, int pipeNumber = -1, CancellationToken ct = default)
     {
         _cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         _accessToken = savedAccessToken;
 
-        for (int i = 0; i <= 9; i++)
+        int start = pipeNumber >= 0 ? pipeNumber : 0;
+        int end = pipeNumber >= 0 ? pipeNumber : 9;
+
+        for (int i = start; i <= end; i++)
         {
             try
             {
                 var pipeName = $"discord-ipc-{i}";
                 _pipe = new NamedPipeClientStream(".", pipeName, PipeDirection.InOut, PipeOptions.Asynchronous);
                 await _pipe.ConnectAsync(1000, _cts.Token);
-                ConsoleUI.Log("Connected to Discord");
+                ConnectedPipe = i;
+                ConsoleUI.Log($"Connected to Discord (pipe {i})");
 
                 var handshake = new JObject
                 {
@@ -72,7 +78,9 @@ public class DiscordRpcClient : IDisposable
             }
         }
 
-        throw new Exception("Could not find Discord. Is it running?");
+        throw new Exception(pipeNumber >= 0
+            ? $"Could not connect to Discord on pipe {pipeNumber}"
+            : "Could not find Discord. Is it running?");
     }
 
     private string NextNonce() => $"nonce-{Interlocked.Increment(ref _nonceCounter)}";

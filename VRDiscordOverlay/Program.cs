@@ -66,7 +66,7 @@ class Program
         try
         {
             ConsoleUI.Log("Connecting to Discord...");
-            await discord.ConnectAsync(settings.AccessToken, cts.Token);
+            await discord.ConnectAsync(settings.AccessToken, settings.DiscordPipe, cts.Token);
         }
         catch (Exception ex)
         {
@@ -144,6 +144,7 @@ class Program
                     ConsoleUI.Log("    M            Toggle show only unmuted");
                     ConsoleUI.Log("    T / Shift+T  Muted user threshold +/- 1");
                     ConsoleUI.Log("    S            Save settings to file");
+                    ConsoleUI.Log("    P            Cycle Discord pipe (0-9 or auto)");
                     ConsoleUI.Log("    A            Re-authorize Discord");
                     ConsoleUI.Log("    Ctrl+C       Exit");
                     ConsoleUI.Log("");
@@ -181,6 +182,11 @@ class Program
                 case ConsoleKey.S:
                     SettingsManager.Save(settings);
                     ConsoleUI.Log("Settings saved!");
+                    break;
+                case ConsoleKey.P:
+                    settings.DiscordPipe = settings.DiscordPipe >= 9 ? -1 : settings.DiscordPipe + 1;
+                    var pipeLabel = settings.DiscordPipe == -1 ? "auto" : settings.DiscordPipe.ToString();
+                    ConsoleUI.Log($"Discord pipe set to {pipeLabel} (restart to apply, or press S then relaunch)");
                     break;
                 case ConsoleKey.A:
                     ConsoleUI.Log("Re-authorizing... check Discord for the approval popup.");
