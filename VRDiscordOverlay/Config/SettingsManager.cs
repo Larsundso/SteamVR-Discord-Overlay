@@ -5,7 +5,8 @@ namespace VRDiscordOverlay.Config;
 public static class SettingsManager
 {
     private static readonly string SettingsPath = Path.Combine(
-        AppContext.BaseDirectory, "vr-discord-overlay-settings.json");
+        Path.GetDirectoryName(Environment.ProcessPath) ?? AppContext.BaseDirectory,
+        "vr-discord-overlay-settings.json");
 
     public static AppSettings Load()
     {
