@@ -65,6 +65,8 @@ public class VoiceStateTracker
         user.JoinTime = DateTime.UtcNow;
         _users[user.Id] = user;
         _ = LoadAvatarAsync(user);
+        ConsoleUI.Log($"+ {user.DisplayName} joined");
+        AddJoinLeaveNotification(user, "joined the channel");
         OnStateChanged?.Invoke();
     }
 
@@ -86,6 +88,8 @@ public class VoiceStateTracker
     {
         if (_users.TryGetValue(data.User.Id, out var user))
         {
+            ConsoleUI.Log($"- {user.DisplayName} left");
+            AddJoinLeaveNotification(user, "left the channel");
             user.IsLeaving = true;
             user.LeaveProgress = 0f;
             OnStateChanged?.Invoke();
@@ -146,6 +150,26 @@ public class VoiceStateTracker
         lock (_lock) { _notifications.Add(notification); }
         _ = LoadAvatarForNotification(notification);
         OnStateChanged?.Invoke();
+    }
+
+    private void AddJoinLeaveNotification(VoiceUser user, string action)
+    {
+        var n = new OverlayNotification
+        {
+            AuthorId = user.Id,
+            AuthorName = user.DisplayName,
+            AuthorAvatarHash = user.AvatarHash,
+            Content = action,
+            IsJoinLeave = true,
+            CreatedAt = DateTime.UtcNow,
+            AnimationProgress = 0f,
+        };
+        if (user.AvatarBitmap != null)
+            n.AuthorAvatar = user.AvatarBitmap.Copy();
+        else
+            _ = LoadAvatarForNotification(n);
+
+        lock (_lock) { _notifications.Add(n); }
     }
 
     private async Task LoadAvatarForNotification(OverlayNotification n)

@@ -111,10 +111,26 @@ public class OverlayRenderer
         }
         int cardWidth = TextLeftMargin + (int)maxNameWidth + IconRightMargin + IconSize + CardRightPad;
 
+        var joinLeaveNotifs = notifications.Where(n => n.IsJoinLeave).ToList();
+        var messageNotifs = notifications.Where(n => !n.IsJoinLeave).ToList();
+
+        float maxJoinLeaveWidth = 0;
+        foreach (var n in joinLeaveNotifs)
+        {
+            float w = _counterPaint.MeasureText(n.AuthorName) + 4 + _counterPaint.MeasureText(n.Content);
+            if (w > maxJoinLeaveWidth) maxJoinLeaveWidth = w;
+        }
+        foreach (var user in allUsers)
+        {
+            float w = _counterPaint.MeasureText(user.DisplayName) + 4 + _counterPaint.MeasureText("left the channel");
+            if (w > maxJoinLeaveWidth) maxJoinLeaveWidth = w;
+        }
+        int joinLeaveWidth = AvatarMargin + (int)Math.Ceiling(maxJoinLeaveWidth) + 24;
+
         string headerText = channelName != null ? $"# {channelName}" : "";
         string headerCount = $" — {allUsers.Count} users";
         float headerTextWidth = _headerPaint.MeasureText(headerText) + _headerCountPaint.MeasureText(headerCount);
-        int width = Math.Max(MinWidth, Math.Max(cardWidth, AvatarMargin + (int)headerTextWidth + CardRightPad));
+        int width = Math.Max(MinWidth, Math.Max(cardWidth, Math.Max(joinLeaveWidth, AvatarMargin + (int)headerTextWidth + CardRightPad)));
 
         bool hasHeader = channelName != null;
         int totalCards = activeUsers.Count + leavingUsers.Count;
@@ -126,11 +142,12 @@ public class OverlayRenderer
             if (deafenedCount > 0) counterH += 20;
         }
         int headerH = hasHeader ? HeaderHeight : 0;
-        int notifCardH = 56; // taller: name + content on two lines
-        int notifH = notifications.Count > 0 ? notifications.Count * (notifCardH + pad) + 8 : 0;
-        int height = Math.Max(cardH + pad, headerH + totalCards * (cardH + pad) + counterH + notifH + pad);
+        int notifCardH = 56;
+        int joinLeaveH = joinLeaveNotifs.Count > 0 ? joinLeaveNotifs.Count * (cardH + pad) + 8 : 0;
+        int msgNotifH = messageNotifs.Count > 0 ? messageNotifs.Count * (notifCardH + pad) + 8 : 0;
+        int height = Math.Max(cardH + pad, headerH + totalCards * (cardH + pad) + counterH + joinLeaveH + msgNotifH + pad);
 
-        foreach (var n in notifications)
+        foreach (var n in messageNotifs)
         {
             float nw = TextLeftMargin + Math.Max(
                 _namePaint.MeasureText(n.AuthorName),
@@ -192,14 +209,34 @@ public class OverlayRenderer
             y += cardH + pad;
         }
 
-        if (notifications.Count > 0)
+        if (joinLeaveNotifs.Count > 0)
         {
             y += 4;
             using var sepPaint = new SKPaint { Color = new SKColor(80, 80, 80, 100), StrokeWidth = 1 };
             canvas.DrawLine(8, y, width - 8, y, sepPaint);
             y += 4;
 
-            foreach (var n in notifications)
+            foreach (var n in joinLeaveNotifs)
+            {
+                float slideX = n.IsLeaving
+                    ? 1f - EaseInCubic(n.LeaveProgress)
+                    : EaseOutCubic(n.AnimationProgress);
+                DrawJoinLeaveNotification(canvas, n, (int)((slideX - 1f) * width), y, width, cardH);
+                y += cardH + pad;
+            }
+        }
+
+        if (messageNotifs.Count > 0)
+        {
+            if (joinLeaveNotifs.Count == 0)
+            {
+                y += 4;
+                using var sepPaint = new SKPaint { Color = new SKColor(80, 80, 80, 100), StrokeWidth = 1 };
+                canvas.DrawLine(8, y, width - 8, y, sepPaint);
+                y += 4;
+            }
+
+            foreach (var n in messageNotifs)
             {
                 float slideX = n.IsLeaving
                     ? 1f - EaseInCubic(n.LeaveProgress)
@@ -210,6 +247,19 @@ public class OverlayRenderer
         }
 
         return (bitmap.Bytes, width, height);
+    }
+
+    private void DrawJoinLeaveNotification(SKCanvas canvas, OverlayNotification n, int xOffset, int y, int width, int height)
+    {
+        float textY = y + height / 2f + 4f;
+        float x = xOffset + AvatarMargin;
+
+        using var namePaint = new SKPaint { IsAntialias = true, Color = SKColors.White };
+        canvas.DrawText(n.AuthorName, x, textY, _counterFont, namePaint);
+
+        x += _counterPaint.MeasureText(n.AuthorName) + 4;
+        using var actionPaint = new SKPaint { IsAntialias = true, Color = new SKColor(140, 140, 140) };
+        canvas.DrawText(n.Content, x, textY, _counterFont, actionPaint);
     }
 
     private void DrawNotification(SKCanvas canvas, OverlayNotification n, int xOffset, int y, int width, int height)

@@ -14,6 +14,7 @@ public class OverlayNotification
     public string? GuildId { get; set; }
     public SKBitmap? AuthorAvatar { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public bool IsJoinLeave { get; set; }
     public float AnimationProgress { get; set; } = 0f;
     public bool IsLeaving { get; set; }
     public float LeaveProgress { get; set; } = 0f;
