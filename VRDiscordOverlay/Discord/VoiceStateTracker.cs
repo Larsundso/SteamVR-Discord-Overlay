@@ -29,6 +29,13 @@ public class VoiceStateTracker
     public string? CurrentChannelId => _currentChannelId;
     public string? CurrentGuildId => _currentGuildId;
     public string? CurrentChannelName { get; private set; }
+    public string VoiceConnectionState { get; private set; } = "DISCONNECTED";
+
+    public void HandleVoiceConnectionStatus(string state)
+    {
+        VoiceConnectionState = state;
+        OnStateChanged?.Invoke();
+    }
 
     public void HandleChannelSelect(RpcChannelData? channel)
     {

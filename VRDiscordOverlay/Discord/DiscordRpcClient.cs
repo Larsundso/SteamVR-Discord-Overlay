@@ -27,6 +27,7 @@ public class DiscordRpcClient : IDisposable
     public event Action<string>? OnSpeakingStart;
     public event Action<string>? OnSpeakingStop;
     public event Action<JObject>? OnNotificationCreate;
+    public event Action<string>? OnVoiceConnectionStatus;
     public event Action<RpcChannelData?>? OnVoiceChannelSelect;
     public event Action? OnReady;
     public event Action? OnDisconnected;
@@ -334,6 +335,13 @@ public class DiscordRpcClient : IDisposable
                 if (frame.Data != null)
                     OnNotificationCreate?.Invoke(frame.Data);
                 break;
+            case "VOICE_CONNECTION_STATUS":
+                if (frame.Data != null)
+                {
+                    var state = frame.Data["state"]?.ToString() ?? "DISCONNECTED";
+                    OnVoiceConnectionStatus?.Invoke(state);
+                }
+                break;
             case "VOICE_CHANNEL_SELECT":
                 _ = SafeAsync(() => HandleVoiceChannelSelectAsync(frame));
                 break;
@@ -386,6 +394,7 @@ public class DiscordRpcClient : IDisposable
 
         await SubscribeToVoiceChannelSelect();
         await SendCommandAsync("SUBSCRIBE", null, "NOTIFICATION_CREATE");
+        await SendCommandAsync("SUBSCRIBE", null, "VOICE_CONNECTION_STATUS");
         await GetSelectedVoiceChannel();
     }
 

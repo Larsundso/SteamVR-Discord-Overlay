@@ -77,7 +77,7 @@ public class OverlayRenderer
         };
     }
 
-    public (byte[] pixels, int width, int height) Render(IReadOnlyList<VoiceUser> allUsers, IReadOnlyList<OverlayNotification> notifications, string? channelName, bool showOnlyUnmuted, int mutedThreshold)
+    public (byte[] pixels, int width, int height) Render(IReadOnlyList<VoiceUser> allUsers, IReadOnlyList<OverlayNotification> notifications, string? channelName, string voiceConnectionState, bool showOnlyUnmuted, int mutedThreshold)
     {
         var activeUsers = new List<VoiceUser>();
         var mutedUsers = new List<VoiceUser>();
@@ -166,6 +166,18 @@ public class OverlayRenderer
         if (hasHeader)
         {
             float hx = AvatarMargin;
+
+            var dotColor = voiceConnectionState switch
+            {
+                "VOICE_CONNECTED" or "CONNECTED" => new SKColor(67, 181, 129),
+                "VOICE_CONNECTING" or "CONNECTING" or "AUTHENTICATING" or "AWAITING_ENDPOINT" => new SKColor(250, 168, 26),
+                "NO_ROUTE" => new SKColor(237, 66, 69),
+                _ => new SKColor(116, 127, 141),
+            };
+            using var dotPaint = new SKPaint { IsAntialias = true, Color = dotColor, Style = SKPaintStyle.Fill };
+            canvas.DrawCircle(hx + 4, y + 13, 4, dotPaint);
+            hx += 14;
+
             canvas.DrawText(headerText, hx, y + 16, _headerFont, _headerPaint);
             hx += _headerPaint.MeasureText(headerText);
             canvas.DrawText(headerCount, hx, y + 16, _counterFont, _headerCountPaint);

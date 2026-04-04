@@ -37,6 +37,7 @@ class Program
         discord.OnSpeakingStart += voiceTracker.HandleSpeakingStart;
         discord.OnSpeakingStop += voiceTracker.HandleSpeakingStop;
         discord.OnNotificationCreate += voiceTracker.HandleNotification;
+        discord.OnVoiceConnectionStatus += voiceTracker.HandleVoiceConnectionStatus;
         discord.OnVoiceChannelSelect += async (channel) =>
         {
             voiceTracker.HandleChannelSelect(channel);
@@ -101,6 +102,7 @@ class Program
                     var notifs = voiceTracker.GetNotifications();
                     var (pixels, width, height) = renderer.Render(
                         users, notifs, voiceTracker.CurrentChannelName,
+                        voiceTracker.VoiceConnectionState,
                         settings.ShowOnlyUnmuted, settings.MutedUserThreshold);
                     overlay.SetTexture(pixels, width, height);
                 }
