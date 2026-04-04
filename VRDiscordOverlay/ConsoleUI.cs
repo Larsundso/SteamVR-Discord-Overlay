@@ -1,13 +1,17 @@
+using VRDiscordOverlay.Web;
+
 namespace VRDiscordOverlay;
 
 public static class ConsoleUI
 {
     private static string _statusLine = "";
     private static readonly object _lock = new();
+    private static WebServer? _webServer;
 
-    public static void Init(string statusLine)
+    public static void Init(string statusLine, WebServer? webServer = null)
     {
         _statusLine = statusLine;
+        _webServer = webServer;
         Console.CursorVisible = false;
         RedrawStatus();
     }
@@ -20,6 +24,7 @@ public static class ConsoleUI
             Console.WriteLine(message);
             RedrawStatus();
         }
+        _webServer?.BroadcastLog(message);
     }
 
     public static void SetStatus(string statusLine)
@@ -30,6 +35,11 @@ public static class ConsoleUI
             ClearStatusLine();
             RedrawStatus();
         }
+    }
+
+    public static void BroadcastState(object state)
+    {
+        _webServer?.BroadcastState(state);
     }
 
     private static void ClearStatusLine()

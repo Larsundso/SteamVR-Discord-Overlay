@@ -1,7 +1,9 @@
+using System.Diagnostics;
 using VRDiscordOverlay.Config;
 using VRDiscordOverlay.Discord;
 using VRDiscordOverlay.Rendering;
 using VRDiscordOverlay.VR;
+using VRDiscordOverlay.Web;
 
 namespace VRDiscordOverlay;
 
@@ -10,13 +12,17 @@ class Program
     static async Task Main(string[] args)
     {
         Console.Title = "Discord VC Overlay";
-        ConsoleUI.Init("  ? help   arrows move   +/- depth   S save   Ctrl+C quit");
-
-        ConsoleUI.Log("Discord VC Overlay for SteamVR");
-        ConsoleUI.Log("");
 
         var settings = SettingsManager.Load();
+        var webServer = new WebServer(settings);
+        var cts = new CancellationTokenSource();
 
+        await webServer.StartAsync(cts.Token);
+        ConsoleUI.Init($"  Dashboard: http://localhost:{webServer.Port}  |  ? help  Ctrl+C quit", webServer);
+
+        ConsoleUI.Log("Discord VC Overlay for SteamVR");
+        ConsoleUI.Log($"Dashboard: http://localhost:{webServer.Port}");
+        ConsoleUI.Log("");
 
         var overlay = new SteamVrOverlay(settings);
         if (!overlay.Initialize())
@@ -30,14 +36,22 @@ class Program
         var voiceTracker = new VoiceStateTracker();
         var discord = new DiscordRpcClient(AppSettings.DiscordClientId, AppSettings.DiscordClientSecret);
 
-
         discord.OnVoiceStateCreate += voiceTracker.HandleVoiceStateCreate;
         discord.OnVoiceStateUpdate += voiceTracker.HandleVoiceStateUpdate;
         discord.OnVoiceStateDelete += voiceTracker.HandleVoiceStateDelete;
         discord.OnSpeakingStart += voiceTracker.HandleSpeakingStart;
         discord.OnSpeakingStop += voiceTracker.HandleSpeakingStop;
         discord.OnNotificationCreate += voiceTracker.HandleNotification;
-        discord.OnVoiceConnectionStatus += voiceTracker.HandleVoiceConnectionStatus;
+        discord.OnVoiceConnectionStatus += (state) =>
+        {
+            voiceTracker.HandleVoiceConnectionStatus(state);
+            ConsoleUI.BroadcastState(new
+            {
+                voiceState = state,
+                channel = voiceTracker.CurrentChannelName,
+                pipe = discord.ConnectedPipe
+            });
+        };
         discord.OnVoiceChannelSelect += async (channel) =>
         {
             voiceTracker.HandleChannelSelect(channel);
@@ -56,13 +70,36 @@ class Program
         {
             settings.AccessToken = discord.AccessToken;
             SettingsManager.Save(settings);
+            ConsoleUI.BroadcastState(new
+            {
+                voiceState = "CONNECTED",
+                pipe = discord.ConnectedPipe
+            });
         };
 
         discord.OnError += (msg) => ConsoleUI.Log($"Error: {msg}");
         discord.OnDisconnected += () => ConsoleUI.Log("Disconnected from Discord");
 
-        var cts = new CancellationTokenSource();
         Console.CancelKeyPress += (_, e) => { e.Cancel = true; cts.Cancel(); };
+
+        int redrawFlag = 1;
+
+        webServer.OnCommand += (name, arg) =>
+        {
+            switch (name)
+            {
+                case "reauth":
+                    ConsoleUI.Log("Re-authorizing... check Discord for the approval popup.");
+                    settings.AccessToken = null;
+                    SettingsManager.Save(settings);
+                    _ = discord.ForceReauthAsync();
+                    break;
+                case "settings_changed":
+                    overlay.UpdatePosition();
+                    Interlocked.Exchange(ref redrawFlag, 1);
+                    break;
+            }
+        };
 
         try
         {
@@ -78,9 +115,10 @@ class Program
             return;
         }
 
+        try { Process.Start(new ProcessStartInfo($"http://localhost:{webServer.Port}") { UseShellExecute = true }); }
+        catch { }
 
         var lastFrame = DateTime.UtcNow;
-        int redrawFlag = 1;
 
         voiceTracker.OnStateChanged += () => Interlocked.Exchange(ref redrawFlag, 1);
 
@@ -122,7 +160,7 @@ class Program
     {
         const float moveStep = 0.02f;
         const float depthStep = 0.05f;
-        const float angleStep = 2f; // degrees
+        const float angleStep = 2f;
         bool helpShown = false;
 
         while (!ct.IsCancellationRequested)
@@ -169,16 +207,14 @@ class Program
                 case ConsoleKey.F:          settings.OverlayPitch += angleStep; moved = true; break;
                 case ConsoleKey.M:
                     settings.ShowOnlyUnmuted = !settings.ShowOnlyUnmuted;
-                    ConsoleUI.Log(settings.ShowOnlyUnmuted
-                        ? "Showing only unmuted users"
-                        : "Showing all users");
+                    ConsoleUI.Log(settings.ShowOnlyUnmuted ? "Showing only unmuted users" : "Showing all users");
                     Interlocked.Exchange(ref redrawFlag, 1);
                     break;
                 case ConsoleKey.T:
                     settings.MutedUserThreshold = key.Modifiers.HasFlag(ConsoleModifiers.Shift)
                         ? Math.Max(1, settings.MutedUserThreshold - 1)
                         : settings.MutedUserThreshold + 1;
-                    ConsoleUI.Log($"Muted user threshold: {settings.MutedUserThreshold} (collapse when >= {settings.MutedUserThreshold} muted)");
+                    ConsoleUI.Log($"Muted user threshold: {settings.MutedUserThreshold}");
                     Interlocked.Exchange(ref redrawFlag, 1);
                     break;
                 case ConsoleKey.S:
@@ -188,7 +224,7 @@ class Program
                 case ConsoleKey.P:
                     settings.DiscordPipe = settings.DiscordPipe >= 9 ? -1 : settings.DiscordPipe + 1;
                     var pipeLabel = settings.DiscordPipe == -1 ? "auto" : settings.DiscordPipe.ToString();
-                    ConsoleUI.Log($"Discord pipe set to {pipeLabel} (restart to apply, or press S then relaunch)");
+                    ConsoleUI.Log($"Discord pipe set to {pipeLabel} (save & restart to apply)");
                     break;
                 case ConsoleKey.A:
                     ConsoleUI.Log("Re-authorizing... check Discord for the approval popup.");
