@@ -132,6 +132,10 @@ class Program
                     SettingsManager.Save(settings);
                     _ = discord.ForceReauthAsync();
                     break;
+                case "save":
+                    SettingsManager.Save(settings);
+                    ConsoleUI.Log("Settings saved!");
+                    break;
                 case "settings_changed":
                     overlay.UpdatePosition();
                     Interlocked.Exchange(ref redrawFlag, 1);

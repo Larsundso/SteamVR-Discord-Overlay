@@ -306,9 +306,11 @@ public class OverlayRenderer
 
         float textX = xOffset + TextLeftMargin;
 
-        if (!string.IsNullOrEmpty(n.GuildName))
+        if (n.GuildName != null)
         {
-            var header = $"#{n.ChannelName} • {n.GuildName}";
+            var header = !string.IsNullOrEmpty(n.GuildName)
+                ? $"#{n.ChannelName} • {n.GuildName}"
+                : $"#{n.ChannelName}";
             using var headerPaint = new SKPaint { IsAntialias = true, Color = new SKColor(88, 101, 242) };
             canvas.DrawText(header, textX, y + 16, _counterFont, headerPaint);
 

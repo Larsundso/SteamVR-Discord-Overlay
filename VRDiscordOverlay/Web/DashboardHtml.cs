@@ -425,6 +425,8 @@ public static class DashboardHtml
       <button class="btn danger" style="width:100%;margin-top:8px" onclick="cmd('reauth')">Re-authorize Discord</button>
     </div>
   </div>
+
+  <button class="btn" style="width:100%;margin-top:8px;padding:8px" onclick="saveSettings()">Save settings</button>
 </div>
 
 <div class="main">
@@ -540,6 +542,11 @@ async function set(key, value) {
 async function cmd(name) {
   if (name === 'reauth') guildsLoaded = false;
   await fetch(`/api/command/${name}`, { method: 'POST' });
+}
+
+async function saveSettings() {
+  await cmd('save');
+  addLog('Settings saved!');
 }
 
 function cyclePipe(dir) {
