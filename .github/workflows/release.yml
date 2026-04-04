@@ -1,0 +1,43 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Get version from tag
+        id: version
+        shell: bash
+        run: echo "version=${GITHUB_REF_NAME#v}" >> $GITHUB_OUTPUT
+
+      - name: Publish
+        run: >
+          dotnet publish VRDiscordOverlay/VRDiscordOverlay.csproj
+          -c Release
+          /p:Version=${{ steps.version.outputs.version }}
+
+      - name: Create zip
+        shell: pwsh
+        run: |
+          $pub = "VRDiscordOverlay/bin/Release/net8.0/win-x64/publish"
+          Compress-Archive -Path "$pub/VRDiscordOverlay.exe", "$pub/vrmanifest.json" -DestinationPath "VRDiscordOverlay-${{ steps.version.outputs.version }}.zip"
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: VRDiscordOverlay-${{ steps.version.outputs.version }}.zip
