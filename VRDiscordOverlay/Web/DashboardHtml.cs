@@ -55,6 +55,316 @@ public static class DashboardHtml
   .dot.yellow { background: #faa81a; }
   .dot.red { background: #ed4245; }
   .dot.gray { background: #747f8d; }
+
+  /* ===== Content split: channel browser + console ===== */
+
+  .content-area {
+    flex: 1;
+    display: flex;
+    flex-direction: row;
+    min-height: 0;
+  }
+
+  .channel-browser {
+    width: 220px;
+    flex-shrink: 0;
+    background: #2b2d31;
+    border-right: 1px solid #3f4147;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .channel-browser-header {
+    padding: 12px 12px 8px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid #3f4147;
+  }
+
+  .channel-browser-header h2 {
+    margin-bottom: 0;
+  }
+
+  .active-subs { padding: 4px 8px 0; }
+  .active-subs:empty { display: none; }
+  .active-sub { display: flex; align-items: center; justify-content: space-between; padding: 3px 6px; margin: 2px 0; background: #313338; border-radius: 4px; font-size: 12px; color: #b5bac1; }
+  .active-sub .sub-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .active-sub .sub-name .hash { color: #5865f2; font-weight: 700; margin-right: 2px; }
+  .active-sub .sub-x { background: none; border: none; color: #8e9297; cursor: pointer; font-size: 14px; padding: 0 4px; flex-shrink: 0; }
+  .active-sub .sub-x:hover { color: #ed4245; }
+
+  .channel-search-wrap { padding: 6px 10px 2px; }
+  .channel-search {
+    width: 100%;
+    padding: 5px 8px;
+    background: #1a1b1e;
+    border: 1px solid #3f4147;
+    border-radius: 4px;
+    color: #dcddde;
+    font-size: 12px;
+    font-family: inherit;
+    outline: none;
+  }
+  .channel-search:focus { border-color: #5865f2; }
+  .channel-search::placeholder { color: #5d6169; }
+
+  .channel-browser-count {
+    font-size: 11px;
+    color: #747f8d;
+    background: #4e5058;
+    padding: 1px 6px;
+    border-radius: 8px;
+    font-weight: 600;
+  }
+
+  .channel-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 4px 0;
+  }
+
+  .channel-list::-webkit-scrollbar,
+  .console::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .channel-list::-webkit-scrollbar-track,
+  .console::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .channel-list::-webkit-scrollbar-thumb,
+  .console::-webkit-scrollbar-thumb {
+    background: #4e5058;
+    border-radius: 3px;
+  }
+
+  .channel-list::-webkit-scrollbar-thumb:hover,
+  .console::-webkit-scrollbar-thumb:hover {
+    background: #5865f2;
+  }
+
+  /* Guild (server) headers */
+  .guild-header {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 12px;
+    cursor: pointer;
+    user-select: none;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: #8e9297;
+    transition: color 0.15s;
+  }
+
+  .guild-header:hover {
+    color: #dcddde;
+  }
+
+  .guild-header .arrow {
+    font-size: 10px;
+    width: 12px;
+    text-align: center;
+    transition: transform 0.15s;
+    flex-shrink: 0;
+  }
+
+  .guild-header.collapsed .arrow {
+    transform: rotate(0deg);
+  }
+
+  .guild-header:not(.collapsed) .arrow {
+    transform: rotate(90deg);
+  }
+
+  .guild-header .guild-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+  }
+
+  .guild-channels {
+    overflow: hidden;
+    transition: max-height 0.2s ease;
+  }
+
+  .guild-channels.collapsed {
+    max-height: 0 !important;
+  }
+
+  /* Channel row with checkbox */
+  .channel-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 12px 3px 20px;
+    cursor: pointer;
+    font-size: 13px;
+    color: #747f8d;
+    transition: background 0.1s, color 0.1s;
+    user-select: none;
+  }
+
+  .channel-item:hover {
+    background: #35373c;
+    color: #dcddde;
+  }
+
+  .channel-item.subscribed {
+    color: #b5bac1;
+  }
+
+  .channel-item input[type="checkbox"] {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 16px;
+    height: 16px;
+    border: 2px solid #4e5058;
+    border-radius: 3px;
+    background: transparent;
+    cursor: pointer;
+    flex-shrink: 0;
+    position: relative;
+    transition: background 0.15s, border-color 0.15s;
+  }
+
+  .channel-item input[type="checkbox"]:checked {
+    background: #5865f2;
+    border-color: #5865f2;
+  }
+
+  .channel-item input[type="checkbox"]:checked::after {
+    content: '';
+    position: absolute;
+    left: 3px;
+    top: 0px;
+    width: 5px;
+    height: 9px;
+    border: solid white;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+  }
+
+  .channel-item input[type="checkbox"]:hover {
+    border-color: #5865f2;
+  }
+
+  .channel-item .hash {
+    color: #4e5058;
+    font-weight: 700;
+    font-size: 15px;
+    line-height: 1;
+    flex-shrink: 0;
+  }
+
+  .channel-item.subscribed .hash {
+    color: #5865f2;
+  }
+
+  .channel-item .channel-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+  }
+
+  /* Loading and empty states */
+  .channel-browser-empty {
+    padding: 16px 12px;
+    text-align: center;
+    color: #747f8d;
+    font-size: 12px;
+    line-height: 1.5;
+  }
+
+  .channel-browser-loading {
+    padding: 16px 12px;
+    text-align: center;
+    color: #8e9297;
+    font-size: 12px;
+  }
+
+  .channel-browser-loading::after {
+    content: '';
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border: 2px solid #4e5058;
+    border-top-color: #5865f2;
+    border-radius: 50%;
+    margin-left: 6px;
+    vertical-align: middle;
+    animation: spin 0.8s linear infinite;
+  }
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+
+  /* ===== Chat messages in console ===== */
+
+  .console .msg {
+    padding: 2px 0;
+    line-height: 1.5;
+    word-wrap: break-word;
+  }
+
+  .console .msg .msg-channel {
+    color: #5865f2;
+    font-weight: 600;
+    font-size: 12px;
+  }
+
+  .console .msg .msg-author {
+    color: #faa81a;
+    font-weight: 600;
+  }
+
+  .console .msg .msg-content {
+    color: #dcddde;
+  }
+
+  .console .msg .msg-edited {
+    color: #747f8d;
+    font-size: 10px;
+    font-style: italic;
+    margin-left: 4px;
+  }
+
+  .console .msg.deleted {
+    opacity: 0.45;
+    text-decoration: line-through;
+    text-decoration-color: #ed4245;
+  }
+
+  .console .msg.deleted .msg-content::after {
+    content: ' (deleted)';
+    color: #ed4245;
+    font-size: 10px;
+    font-style: italic;
+    text-decoration: none;
+    display: inline;
+  }
+
+  /* ===== Responsive: narrow screens ===== */
+
+  @media (max-width: 800px) {
+    .content-area {
+      flex-direction: column;
+    }
+
+    .channel-browser {
+      width: 100%;
+      max-height: 200px;
+      border-right: none;
+      border-bottom: 1px solid #3f4147;
+    }
+  }
 </style>
 </head>
 <body>
@@ -118,7 +428,25 @@ public static class DashboardHtml
 </div>
 
 <div class="main">
-  <div class="console" id="console"></div>
+  <div class="content-area">
+    <div class="channel-browser">
+      <div class="channel-browser-header">
+        <h2>Channels</h2>
+        <span class="channel-browser-count" id="subCount">0</span>
+      </div>
+      <div class="active-subs" id="activeSubs"></div>
+      <div class="channel-search-wrap">
+        <input type="text" class="channel-search" id="guildSearch" placeholder="Filter servers..." oninput="applyFilters()">
+        <input type="text" class="channel-search" id="channelSearch" placeholder="Filter channels..." oninput="applyFilters()" style="margin-top:4px">
+      </div>
+      <div class="channel-list" id="channelList">
+        <div class="channel-browser-empty" id="channelEmpty">
+          Connect to Discord to browse channels
+        </div>
+      </div>
+    </div>
+    <div class="console" id="console"></div>
+  </div>
   <div class="status-bar">
     <span><span class="dot gray" id="connDot"></span><span id="connText">Connecting...</span></span>
     <span id="pipeText"></span>
@@ -137,6 +465,9 @@ function connect() {
       const msg = JSON.parse(e.data);
       if (msg.type === 'log') addLog(msg.message);
       else if (msg.type === 'state') updateState(msg.data);
+      else if (msg.type === 'message_create') addMessage(msg.data);
+      else if (msg.type === 'message_update') updateMessage(msg.data);
+      else if (msg.type === 'message_delete') deleteMessage(msg.data);
     } catch(err) {
       addLog('[dashboard] Parse error: ' + err);
     }
@@ -158,6 +489,8 @@ function addLog(text) {
   el.scrollTop = el.scrollHeight;
 }
 
+let guildsLoaded = false;
+
 function updateState(s) {
   const dot = document.getElementById('connDot');
   const txt = document.getElementById('connText');
@@ -165,6 +498,10 @@ function updateState(s) {
     const st = s.voiceState;
     dot.className = 'dot ' + ({VOICE_CONNECTED:'green',CONNECTED:'green',VOICE_CONNECTING:'yellow',CONNECTING:'yellow',AUTHENTICATING:'yellow',AWAITING_ENDPOINT:'yellow',NO_ROUTE:'red'}[st] || 'gray');
     txt.textContent = st.replace(/_/g,' ').toLowerCase();
+
+    if ((st === 'CONNECTED' || st === 'VOICE_CONNECTED') && !guildsLoaded) {
+      loadGuilds();
+    }
   }
   if (s.channel) txt.textContent = s.channel + ' — ' + (s.voiceState||'').replace(/_/g,' ').toLowerCase();
   if (s.pipe !== undefined) document.getElementById('pipeText').textContent = 'pipe ' + s.pipe;
@@ -201,6 +538,7 @@ async function set(key, value) {
 }
 
 async function cmd(name) {
+  if (name === 'reauth') guildsLoaded = false;
   await fetch(`/api/command/${name}`, { method: 'POST' });
 }
 
@@ -212,8 +550,321 @@ function cyclePipe(dir) {
   set('DiscordPipe', next);
 }
 
+/* ===== Channel browser ===== */
+
+let guildsData = {};
+let subscribedIds = new Set();
+let channelNameMap = {};
+let channelGuildMap = {};
+
+async function loadGuilds() {
+  const el = document.getElementById('channelList');
+  const empty = document.getElementById('channelEmpty');
+  if (empty) empty.textContent = '';
+  el.innerHTML = '<div class="channel-browser-loading">Loading</div>';
+
+  try {
+    const [guildsResp, subsResp] = await Promise.all([
+      fetch('/api/guilds'),
+      fetch('/api/subscriptions')
+    ]);
+    if (!guildsResp.ok) {
+      el.innerHTML = '<div class="channel-browser-empty">Not connected yet</div>';
+      return;
+    }
+    const guildsObj = await guildsResp.json();
+    const subs = subsResp.ok ? await subsResp.json() : {};
+    subscribedIds = new Set(Object.keys(subs));
+    for (var sid in subs) channelNameMap[sid] = subs[sid];
+    updateSubCount();
+
+    const guilds = guildsObj.guilds || [];
+    if (guilds.length === 0) {
+      el.innerHTML = '<div class="channel-browser-empty">No servers found</div>';
+      return;
+    }
+
+    guildsLoaded = true;
+    el.innerHTML = '';
+
+    for (const guild of guilds) {
+      const guildId = guild.id;
+      const guildName = guild.name || 'Unknown Server';
+
+      const header = document.createElement('div');
+      header.className = 'guild-header collapsed';
+      header.innerHTML = '<span class="arrow">\u25B8</span><span class="guild-name">' + escapeHtml(guildName) + '</span>';
+
+      const channelsContainer = document.createElement('div');
+      channelsContainer.className = 'guild-channels collapsed';
+
+      header.addEventListener('click', async function() {
+        const isCollapsed = header.classList.toggle('collapsed');
+        if (isCollapsed) {
+          channelsContainer.classList.add('collapsed');
+        } else {
+          channelsContainer.classList.remove('collapsed');
+          if (channelsContainer.children.length === 0) {
+            await loadChannels(guildId, channelsContainer);
+          }
+        }
+      });
+
+      el.appendChild(header);
+      el.appendChild(channelsContainer);
+      guildsData[guildId] = { name: guildName, channels: [] };
+    }
+  } catch (err) {
+    el.innerHTML = '<div class="channel-browser-empty">Failed to load servers</div>';
+  }
+}
+
+async function loadChannels(guildId, container) {
+  container.innerHTML = '<div class="channel-browser-loading">Loading</div>';
+
+  try {
+    const resp = await fetch('/api/guilds/' + guildId + '/channels');
+    const data = await resp.json();
+    const channels = data.channels || [];
+
+    const textChannels = channels
+      .filter(function(c) { return c.type === 0; })
+      .sort(function(a, b) { return a.name.localeCompare(b.name); });
+
+    container.innerHTML = '';
+
+    if (textChannels.length === 0) {
+      container.innerHTML = '<div class="channel-browser-empty" style="padding:4px 20px;text-align:left">No text channels</div>';
+      return;
+    }
+
+    for (const ch of textChannels) {
+      channelNameMap[ch.id] = ch.name;
+      channelGuildMap[ch.id] = guildsData[guildId]?.name || '';
+
+      const item = document.createElement('label');
+      item.className = 'channel-item' + (subscribedIds.has(ch.id) ? ' subscribed' : '');
+
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.checked = subscribedIds.has(ch.id);
+      cb.addEventListener('change', function() {
+        toggleChannel(ch.id, cb.checked, item);
+      });
+
+      const hash = document.createElement('span');
+      hash.className = 'hash';
+      hash.textContent = '#';
+
+      const name = document.createElement('span');
+      name.className = 'channel-name';
+      name.textContent = ch.name;
+
+      item.appendChild(cb);
+      item.appendChild(hash);
+      item.appendChild(name);
+      container.appendChild(item);
+    }
+
+    guildsData[guildId].channels = textChannels;
+  } catch (err) {
+    container.innerHTML = '<div class="channel-browser-empty" style="padding:4px 20px;text-align:left">Failed to load channels</div>';
+  }
+}
+
+async function toggleChannel(channelId, subscribe, itemEl) {
+  try {
+    const chName = channelNameMap[channelId] || '';
+    const gName = channelGuildMap[channelId] || '';
+    const endpoint = '/api/channels/' + channelId + (subscribe ? '/subscribe' : '/unsubscribe') + '?name=' + encodeURIComponent(chName) + '&guild=' + encodeURIComponent(gName);
+    const resp = await fetch(endpoint, { method: 'POST' });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    if (subscribe) {
+      subscribedIds.add(channelId);
+      itemEl.classList.add('subscribed');
+    } else {
+      subscribedIds.delete(channelId);
+      itemEl.classList.remove('subscribed');
+    }
+    updateSubCount();
+  } catch (err) {
+    const cb = itemEl.querySelector('input[type="checkbox"]');
+    if (cb) cb.checked = !subscribe;
+  }
+}
+
+function updateSubCount() {
+  document.getElementById('subCount').textContent = subscribedIds.size;
+  renderActiveSubs();
+}
+
+function renderActiveSubs() {
+  var el = document.getElementById('activeSubs');
+  el.innerHTML = '';
+  for (var id of subscribedIds) {
+    var name = channelNameMap[id] || id;
+    var row = document.createElement('div');
+    row.className = 'active-sub';
+    var span = document.createElement('span');
+    span.className = 'sub-name';
+    span.innerHTML = '<span class="hash">#</span>' + escapeHtml(name);
+    var btn = document.createElement('button');
+    btn.className = 'sub-x';
+    btn.textContent = '\u00d7';
+    btn.title = 'Unsubscribe';
+    (function(chId) {
+      btn.onclick = function() { unsubFromActive(chId); };
+    })(id);
+    row.appendChild(span);
+    row.appendChild(btn);
+    el.appendChild(row);
+  }
+}
+
+async function unsubFromActive(channelId) {
+  try {
+    var chName = channelNameMap[channelId] || '';
+    var gName = channelGuildMap[channelId] || '';
+    var resp = await fetch('/api/channels/' + channelId + '/unsubscribe?name=' + encodeURIComponent(chName) + '&guild=' + encodeURIComponent(gName), { method: 'POST' });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    subscribedIds.delete(channelId);
+    updateSubCount();
+    document.querySelectorAll('.channel-item input[type="checkbox"]').forEach(function(cb) {
+      var item = cb.closest('.channel-item');
+      var chName = item?.querySelector('.channel-name')?.textContent;
+      if (chName === channelNameMap[channelId]) {
+        cb.checked = false;
+        item?.classList.remove('subscribed');
+      }
+    });
+  } catch(e) { addLog('[dashboard] Unsub error: ' + e); }
+}
+
+let preFilterState = null;
+
+function applyFilters() {
+  const gq = (document.getElementById('guildSearch').value || '').toLowerCase().trim();
+  const cq = (document.getElementById('channelSearch').value || '').toLowerCase().trim();
+  const list = document.getElementById('channelList');
+  const headers = list.querySelectorAll('.guild-header');
+  const containers = list.querySelectorAll('.guild-channels');
+  const active = gq || cq;
+
+  if (!active) {
+    headers.forEach(h => h.style.display = '');
+    containers.forEach((c, i) => {
+      c.style.display = '';
+      for (const ch of c.querySelectorAll('.channel-item')) ch.style.display = '';
+      if (preFilterState && preFilterState[i]) {
+        c.classList.add('collapsed');
+        if (headers[i]) headers[i].classList.add('collapsed');
+      }
+    });
+    preFilterState = null;
+    return;
+  }
+
+  if (preFilterState === null) {
+    preFilterState = Array.from(containers).map(c => c.classList.contains('collapsed'));
+  }
+
+  headers.forEach((header, idx) => {
+    const guildName = (header.querySelector('.guild-name')?.textContent || '').toLowerCase();
+    const container = containers[idx];
+    if (!container) return;
+
+    const guildVisible = !gq || guildName.includes(gq);
+    if (!guildVisible) {
+      header.style.display = 'none';
+      container.style.display = 'none';
+      return;
+    }
+
+    const items = container.querySelectorAll('.channel-item');
+    let hasVisibleChannel = items.length === 0;
+
+    items.forEach(ch => {
+      const chName = (ch.querySelector('.channel-name')?.textContent || '').toLowerCase();
+      if (!cq || chName.includes(cq)) { ch.style.display = ''; hasVisibleChannel = true; }
+      else ch.style.display = 'none';
+    });
+
+    if (hasVisibleChannel) {
+      header.style.display = '';
+      container.style.display = '';
+      header.classList.remove('collapsed');
+      container.classList.remove('collapsed');
+    } else {
+      header.style.display = 'none';
+      container.style.display = 'none';
+    }
+  });
+}
+
+function escapeHtml(text) {
+  var d = document.createElement('div');
+  d.textContent = text;
+  return d.innerHTML;
+}
+
+/* ===== Chat message display ===== */
+
+function addMessage(data) {
+  var msg = data.message || data;
+  var channelId = msg.channel_id || data.channel_id || '';
+  var channelName = channelNameMap[channelId] || channelId;
+  var author = msg.author || {};
+  var authorName = author.username || 'unknown';
+  var content = msg.content || '';
+  var edited = msg.edited_timestamp ? true : false;
+
+  var el = document.getElementById('console');
+  var div = document.createElement('div');
+  div.className = 'msg';
+  div.setAttribute('data-msg-id', msg.id || '');
+
+  div.innerHTML =
+    '<span class="msg-channel">#' + escapeHtml(channelName) + '</span> ' +
+    '<span class="msg-author">' + escapeHtml(authorName) + '</span>: ' +
+    '<span class="msg-content">' + escapeHtml(content) + '</span>' +
+    (edited ? '<span class="msg-edited">(edited)</span>' : '');
+
+  el.appendChild(div);
+  el.scrollTop = el.scrollHeight;
+}
+
+function updateMessage(data) {
+  var msg = data.message || data;
+  var id = msg.id || '';
+  if (!id) return;
+
+  var existing = document.querySelector('.msg[data-msg-id="' + id + '"]');
+  if (!existing) return;
+
+  var content = msg.content || '';
+  var contentSpan = existing.querySelector('.msg-content');
+  if (contentSpan) contentSpan.textContent = content;
+
+  if (!existing.querySelector('.msg-edited')) {
+    var edited = document.createElement('span');
+    edited.className = 'msg-edited';
+    edited.textContent = '(edited)';
+    existing.appendChild(edited);
+  }
+}
+
+function deleteMessage(data) {
+  var msg = data.message || data;
+  var id = msg.id || '';
+  if (!id) return;
+
+  var existing = document.querySelector('.msg[data-msg-id="' + id + '"]');
+  if (existing) existing.classList.add('deleted');
+}
+
 loadSettings();
 connect();
+setTimeout(loadGuilds, 1500);
 </script>
 </body>
 </html>
