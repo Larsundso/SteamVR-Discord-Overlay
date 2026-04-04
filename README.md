@@ -2,7 +2,7 @@
 
 A SteamVR overlay that shows your Discord voice channel members in VR. See who's talking, muted, or deafened without taking off your headset. See Discord notifications and subscribe to text channels for in-VR message viewing. Control the overlay with keyboard shortcuts or a web dashboard.
 
-https://github.com/Larsundso/SteamVR-Discord-Overlay/raw/main/showcase.mp4
+https://github.com/user-attachments/assets/85ef2525-d72c-4974-ad15-4cc2b934efd7
 
 ## Features
 
