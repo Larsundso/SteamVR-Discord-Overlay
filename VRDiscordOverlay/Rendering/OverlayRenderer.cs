@@ -142,19 +142,27 @@ public class OverlayRenderer
             if (deafenedCount > 0) counterH += 20;
         }
         int headerH = hasHeader ? HeaderHeight : 0;
-        int notifCardH = 56;
         int joinLeaveH = joinLeaveNotifs.Count > 0 ? joinLeaveNotifs.Count * (cardH + pad) + 8 : 0;
-        int msgNotifH = messageNotifs.Count > 0 ? messageNotifs.Count * (notifCardH + pad) + 8 : 0;
-        int height = Math.Max(cardH + pad, headerH + totalCards * (cardH + pad) + counterH + joinLeaveH + msgNotifH + pad);
+        int baseHeight = Math.Max(cardH + pad, headerH + totalCards * (cardH + pad) + counterH + joinLeaveH + pad);
 
         foreach (var n in messageNotifs)
         {
-            float nw = TextLeftMargin + Math.Max(
-                _namePaint.MeasureText(n.AuthorName),
-                _counterPaint.MeasureText(n.Content.Length > 50 ? n.Content[..50] : n.Content)
-            ) + CardRightPad;
+            float nw = TextLeftMargin + _namePaint.MeasureText(n.AuthorName) + CardRightPad;
             if ((int)nw > width) width = (int)nw;
         }
+
+        float maxTextW = width - TextLeftMargin - 12;
+        var notifHeights = new int[messageNotifs.Count];
+        for (int i = 0; i < messageNotifs.Count; i++)
+        {
+            var n = messageNotifs[i];
+            var text = n.GuildName != null ? $"{n.AuthorName}: {n.Content}" : n.Content;
+            int lineCount = WrapText(text, maxTextW).Count;
+            int h = 24 + lineCount * 16 + 8;
+            notifHeights[i] = Math.Max(h, AvatarSize + 16);
+        }
+        int msgNotifH = notifHeights.Length > 0 ? notifHeights.Sum() + notifHeights.Length * pad + 8 : 0;
+        int height = baseHeight + msgNotifH;
 
         var info = new SKImageInfo(width, height, SKColorType.Bgra8888, SKAlphaType.Premul);
         using var bitmap = new SKBitmap(info);
@@ -248,13 +256,15 @@ public class OverlayRenderer
                 y += 4;
             }
 
-            foreach (var n in messageNotifs)
+            for (int i = 0; i < messageNotifs.Count; i++)
             {
+                var n = messageNotifs[i];
+                int nh = notifHeights[i];
                 float slideX = n.IsLeaving
                     ? 1f - EaseInCubic(n.LeaveProgress)
                     : EaseOutCubic(n.AnimationProgress);
-                DrawNotification(canvas, n, (int)((slideX - 1f) * width), y, width, notifCardH);
-                y += notifCardH + pad;
+                DrawNotification(canvas, n, (int)((slideX - 1f) * width), y, width, nh);
+                y += nh + pad;
             }
         }
 
@@ -286,7 +296,7 @@ public class OverlayRenderer
         canvas.DrawRoundRect(rect, CornerRadius, CornerRadius, bgPaint);
 
         int avX = xOffset + AvatarMargin;
-        int avY = y + (height - AvatarSize) / 2;
+        int avY = y + 10;
 
         canvas.Save();
         using var clipPath = new SKPath();
@@ -305,6 +315,7 @@ public class OverlayRenderer
         canvas.Restore();
 
         float textX = xOffset + TextLeftMargin;
+        float maxTextW = width - TextLeftMargin - 12;
 
         if (n.GuildName != null)
         {
@@ -314,18 +325,19 @@ public class OverlayRenderer
             using var headerPaint = new SKPaint { IsAntialias = true, Color = new SKColor(88, 101, 242) };
             canvas.DrawText(header, textX, y + 16, _counterFont, headerPaint);
 
-            var line2 = $"{n.AuthorName}: {n.Content}";
-            if (line2.Length > 50) line2 = line2[..50] + "...";
-            using var line2Paint = new SKPaint { IsAntialias = true, Color = new SKColor(200, 200, 200) };
-            canvas.DrawText(line2, textX, y + 36, _counterFont, line2Paint);
+            var lines = WrapText($"{n.AuthorName}: {n.Content}", maxTextW);
+            using var linePaint = new SKPaint { IsAntialias = true, Color = new SKColor(200, 200, 200) };
+            for (int i = 0; i < lines.Count; i++)
+                canvas.DrawText(lines[i], textX, y + 34 + i * 16, _counterFont, linePaint);
         }
         else
         {
             using var namePaint = new SKPaint { IsAntialias = true, Color = SKColors.White };
             canvas.DrawText(n.AuthorName, textX, y + 20, _nameFont, namePaint);
 
-            string content = n.Content.Length > 50 ? n.Content[..50] + "..." : n.Content;
-            canvas.DrawText(content, textX, y + 38, _counterFont, _counterPaint);
+            var lines = WrapText(n.Content, maxTextW);
+            for (int i = 0; i < lines.Count; i++)
+                canvas.DrawText(lines[i], textX, y + 38 + i * 16, _counterFont, _counterPaint);
         }
     }
 
@@ -498,6 +510,43 @@ public class OverlayRenderer
         float textWidth = _counterPaint.MeasureText(text);
         float x = (width - textWidth) / 2f;
         canvas.DrawText(text, x, y + 14, _counterFont, _counterPaint);
+    }
+
+    private List<string> WrapText(string text, float maxWidth, int maxLines = 3)
+    {
+        var lines = new List<string>();
+        if (string.IsNullOrEmpty(text)) { lines.Add(""); return lines; }
+
+        var words = text.Split(' ');
+        var current = "";
+
+        foreach (var word in words)
+        {
+            var test = current.Length == 0 ? word : current + " " + word;
+            if (_counterPaint.MeasureText(test) > maxWidth && current.Length > 0)
+            {
+                lines.Add(current);
+                current = word;
+                if (lines.Count >= maxLines) break;
+            }
+            else
+            {
+                current = test;
+            }
+        }
+
+        if (lines.Count < maxLines && current.Length > 0)
+            lines.Add(current);
+
+        if (lines.Count >= maxLines)
+        {
+            var last = lines[maxLines - 1];
+            while (_counterPaint.MeasureText(last + "...") > maxWidth && last.Length > 3)
+                last = last[..^1];
+            lines[maxLines - 1] = last + "...";
+        }
+
+        return lines;
     }
 
     private static float EaseOutCubic(float t) => 1f - MathF.Pow(1f - t, 3f);
