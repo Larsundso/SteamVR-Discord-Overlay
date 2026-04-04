@@ -8,6 +8,8 @@ public static class SettingsManager
         Path.GetDirectoryName(Environment.ProcessPath) ?? AppContext.BaseDirectory,
         "vr-discord-overlay-settings.json");
 
+    private static readonly object _lock = new();
+
     public static AppSettings Load()
     {
         if (!File.Exists(SettingsPath))
@@ -23,7 +25,10 @@ public static class SettingsManager
 
     public static void Save(AppSettings settings)
     {
-        var json = JsonConvert.SerializeObject(settings, Formatting.Indented);
-        File.WriteAllText(SettingsPath, json);
+        lock (_lock)
+        {
+            var json = JsonConvert.SerializeObject(settings, Formatting.Indented);
+            File.WriteAllText(SettingsPath, json);
+        }
     }
 }

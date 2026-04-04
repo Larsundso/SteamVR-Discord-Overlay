@@ -99,13 +99,14 @@ public class SteamVrOverlay : IDisposable
         float widthMeters = width * metersPerPixel;
         float heightMeters = height * metersPerPixel;
 
+        OpenVR.Overlay.SetOverlayWidthInMeters(_overlayHandle, widthMeters);
+        OpenVR.Overlay.SetOverlayAlpha(_overlayHandle, _settings.OverlayOpacity);
         if (width != _lastW || height != _lastH)
         {
             _lastW = width;
             _lastH = height;
-            OpenVR.Overlay.SetOverlayWidthInMeters(_overlayHandle, widthMeters);
-            UpdatePosition(heightMeters);
         }
+        UpdatePosition(heightMeters);
 
         EnsureTextures(width, height);
 
