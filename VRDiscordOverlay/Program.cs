@@ -75,7 +75,38 @@ class Program
                 voiceState = "CONNECTED",
                 pipe = discord.ConnectedPipe
             });
+
+            if (settings.SavedSubscriptions.Count > 0)
+            {
+                _ = Task.Run(async () =>
+                {
+                    int count = 0;
+                    foreach (var (chId, saved) in settings.SavedSubscriptions.ToList())
+                    {
+                        var parts = saved.Split('|', 2);
+                        var chName = parts[0];
+                        var guildName = parts.Length > 1 ? parts[1] : "";
+                        try
+                        {
+                            await discord.SubscribeToTextChannel(chId);
+                            voiceTracker.RegisterChannelInfo(chId, chName, guildName);
+                            ConsoleUI.Log($"Restored subscription: #{chName}" + (guildName != "" ? $" ({guildName})" : ""));
+                            count++;
+                        }
+                        catch { ConsoleUI.Log($"Failed to restore: #{chName}"); }
+                    }
+                    ConsoleUI.Log($"Restored {count} channel subscription(s)");
+                });
+            }
         };
+
+        discord.OnMessageCreate += (data) =>
+        {
+            webServer.BroadcastMessage("message_create", data);
+            voiceTracker.HandleMessageCreate(data);
+        };
+        discord.OnMessageUpdate += (data) => webServer.BroadcastMessage("message_update", data);
+        discord.OnMessageDelete += (data) => webServer.BroadcastMessage("message_delete", data);
 
         discord.OnError += (msg) => ConsoleUI.Log($"Error: {msg}");
         discord.OnDisconnected += () => ConsoleUI.Log("Disconnected from Discord");
@@ -83,6 +114,13 @@ class Program
         Console.CancelKeyPress += (_, e) => { e.Cancel = true; cts.Cancel(); };
 
         int redrawFlag = 1;
+
+        webServer.RegisterChannelInfo = (id, ch, guild) => voiceTracker.RegisterChannelInfo(id, ch, guild);
+        webServer.GetGuilds = () => discord.GetGuildsAsync();
+        webServer.GetChannels = (id) => discord.GetChannelsAsync(id);
+        webServer.SubscribeChannel = (id) => discord.SubscribeToTextChannel(id);
+        webServer.UnsubscribeChannel = (id) => discord.UnsubscribeFromTextChannel(id);
+        webServer.GetSubscribedChannels = () => discord.GetSubscribedTextChannels();
 
         webServer.OnCommand += (name, arg) =>
         {

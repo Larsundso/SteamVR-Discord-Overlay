@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Net.WebSockets;
 using System.Text;
 using Microsoft.AspNetCore.Builder;
@@ -5,6 +6,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using VRDiscordOverlay.Config;
 
 namespace VRDiscordOverlay.Web;
@@ -14,6 +16,7 @@ public class WebServer
     private WebApplication? _app;
     private readonly AppSettings _settings;
     private readonly List<WebSocket> _clients = new();
+    private readonly ConcurrentDictionary<WebSocket, SemaphoreSlim> _sendLocks = new();
     private readonly List<string> _logBuffer = new();
     private readonly object _lock = new();
     private object? _lastState;
@@ -21,6 +24,13 @@ public class WebServer
     public int Port { get; private set; }
 
     public event Action<string, string?>? OnCommand;
+
+    public Func<Task<JObject?>>? GetGuilds { get; set; }
+    public Func<string, Task<JObject?>>? GetChannels { get; set; }
+    public Func<string, Task>? SubscribeChannel { get; set; }
+    public Func<string, Task>? UnsubscribeChannel { get; set; }
+    public Func<IReadOnlyCollection<string>>? GetSubscribedChannels { get; set; }
+    public Action<string, string, string>? RegisterChannelInfo { get; set; }
 
     public WebServer(AppSettings settings)
     {
@@ -73,6 +83,56 @@ public class WebServer
             return Results.Ok();
         });
 
+        _app.MapGet("/api/guilds", async () =>
+        {
+            if (GetGuilds == null) return Results.StatusCode(503);
+            var data = await GetGuilds();
+            return Results.Text(data?.ToString() ?? "{}", "application/json");
+        });
+
+        _app.MapGet("/api/guilds/{guildId}/channels", async (string guildId) =>
+        {
+            if (GetChannels == null) return Results.StatusCode(503);
+            var data = await GetChannels(guildId);
+            return Results.Text(data?.ToString() ?? "{}", "application/json");
+        });
+
+        _app.MapPost("/api/channels/{channelId}/subscribe", async (string channelId, HttpContext ctx) =>
+        {
+            if (SubscribeChannel == null) return Results.StatusCode(503);
+            await SubscribeChannel(channelId);
+            var name = ctx.Request.Query["name"].FirstOrDefault() ?? channelId;
+            var guild = ctx.Request.Query["guild"].FirstOrDefault() ?? "";
+            ConsoleUI.Log($"Subscribed to #{name}" + (guild != "" ? $" ({guild})" : ""));
+            RegisterChannelInfo?.Invoke(channelId, name, guild);
+            _settings.SavedSubscriptions.Remove(channelId);
+            _settings.SavedSubscriptions[channelId] = guild != "" ? $"{name}|{guild}" : name;
+            if (_settings.SavedSubscriptions.Count > 5)
+                _settings.SavedSubscriptions.Remove(_settings.SavedSubscriptions.Keys.First());
+            SettingsManager.Save(_settings);
+            return Results.Ok();
+        });
+
+        _app.MapPost("/api/channels/{channelId}/unsubscribe", async (string channelId, HttpContext ctx) =>
+        {
+            if (UnsubscribeChannel == null) return Results.StatusCode(503);
+            await UnsubscribeChannel(channelId);
+            var name = ctx.Request.Query["name"].FirstOrDefault() ?? channelId;
+            ConsoleUI.Log($"Unsubscribed from #{name}");
+            _settings.SavedSubscriptions.Remove(channelId);
+            SettingsManager.Save(_settings);
+            return Results.Ok();
+        });
+
+        _app.MapGet("/api/subscriptions", () =>
+        {
+            var ids = GetSubscribedChannels?.Invoke() ?? Array.Empty<string>();
+            var result = new Dictionary<string, string>();
+            foreach (var id in ids)
+                result[id] = _settings.SavedSubscriptions.TryGetValue(id, out var n) ? n : id;
+            return Results.Text(JsonConvert.SerializeObject(result), "application/json");
+        });
+
         _app.Map("/ws", async (HttpContext ctx) =>
         {
             if (!ctx.WebSockets.IsWebSocketRequest)
@@ -82,25 +142,30 @@ public class WebServer
             }
 
             var ws = await ctx.WebSockets.AcceptWebSocketAsync();
+            var sendLock = new SemaphoreSlim(1, 1);
+            _sendLocks[ws] = sendLock;
 
             string[] logs;
+            object? state;
             lock (_lock)
             {
-                _clients.Add(ws);
                 logs = _logBuffer.ToArray();
+                state = _lastState;
             }
 
             foreach (var log in logs)
             {
                 var logJson = JsonConvert.SerializeObject(new { type = "log", message = log });
-                await ws.SendAsync(Encoding.UTF8.GetBytes(logJson), WebSocketMessageType.Text, true, ct);
+                await SendToClientAsync(ws, Encoding.UTF8.GetBytes(logJson));
             }
 
-            if (_lastState != null)
+            if (state != null)
             {
-                var stateJson = JsonConvert.SerializeObject(new { type = "state", data = _lastState });
-                await ws.SendAsync(Encoding.UTF8.GetBytes(stateJson), WebSocketMessageType.Text, true, ct);
+                var stateJson = JsonConvert.SerializeObject(new { type = "state", data = state });
+                await SendToClientAsync(ws, Encoding.UTF8.GetBytes(stateJson));
             }
+
+            lock (_lock) { _clients.Add(ws); }
 
             var buf = new byte[1024];
             try
@@ -115,6 +180,7 @@ public class WebServer
             finally
             {
                 lock (_lock) { _clients.Remove(ws); }
+                _sendLocks.TryRemove(ws, out _);
             }
         });
 
@@ -133,6 +199,12 @@ public class WebServer
         Broadcast(json);
     }
 
+    public void BroadcastMessage(string messageType, object data)
+    {
+        var json = JsonConvert.SerializeObject(new { type = messageType, data });
+        Broadcast(json);
+    }
+
     public void BroadcastState(object state)
     {
         _lastState = state;
@@ -143,15 +215,26 @@ public class WebServer
     private void Broadcast(string json)
     {
         var bytes = Encoding.UTF8.GetBytes(json);
-        lock (_lock)
+        WebSocket[] clients;
+        lock (_lock) { clients = _clients.ToArray(); }
+
+        foreach (var ws in clients)
         {
-            foreach (var ws in _clients.ToArray())
-            {
-                if (ws.State == WebSocketState.Open)
-                {
-                    _ = ws.SendAsync(bytes, WebSocketMessageType.Text, true, CancellationToken.None);
-                }
-            }
+            if (ws.State == WebSocketState.Open)
+                _ = SendToClientAsync(ws, bytes);
         }
+    }
+
+    private async Task SendToClientAsync(WebSocket ws, byte[] bytes)
+    {
+        if (!_sendLocks.TryGetValue(ws, out var sem)) return;
+        await sem.WaitAsync();
+        try
+        {
+            if (ws.State == WebSocketState.Open)
+                await ws.SendAsync(bytes, WebSocketMessageType.Text, true, CancellationToken.None);
+        }
+        catch { }
+        finally { sem.Release(); }
     }
 }

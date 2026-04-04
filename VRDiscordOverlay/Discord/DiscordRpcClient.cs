@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.IO.Pipes;
 using System.Text;
 using Newtonsoft.Json;
@@ -16,6 +17,8 @@ public class DiscordRpcClient : IDisposable
     private string? _subscribedChannelId;
     private int _nonceCounter;
     private readonly SemaphoreSlim _writeLock = new(1, 1);
+    private readonly ConcurrentDictionary<string, TaskCompletionSource<JObject?>> _pendingRequests = new();
+    private readonly HashSet<string> _subscribedTextChannels = new();
 
     private const int OP_HANDSHAKE = 0;
     private const int OP_FRAME = 1;
@@ -32,6 +35,9 @@ public class DiscordRpcClient : IDisposable
     public event Action? OnReady;
     public event Action? OnDisconnected;
     public event Action<string>? OnError;
+    public event Action<JObject>? OnMessageCreate;
+    public event Action<JObject>? OnMessageUpdate;
+    public event Action<JObject>? OnMessageDelete;
 
     public string? AccessToken => _accessToken;
     public bool IsConnected => _pipe?.IsConnected ?? false;
@@ -122,6 +128,28 @@ public class DiscordRpcClient : IDisposable
         await WriteFrameAsync(OP_FRAME, json);
     }
 
+    public async Task<JObject?> SendCommandWithResponseAsync(string command, JObject? args = null, int timeoutMs = 5000)
+    {
+        var nonce = NextNonce();
+        var tcs = new TaskCompletionSource<JObject?>();
+        _pendingRequests[nonce] = tcs;
+
+        var frame = new JObject { ["cmd"] = command, ["nonce"] = nonce };
+        if (args != null) frame["args"] = args;
+        await WriteFrameAsync(OP_FRAME, frame.ToString(Formatting.None));
+
+        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(_cts.Token);
+        timeoutCts.CancelAfter(timeoutMs);
+        var reg = timeoutCts.Token.Register(() =>
+        {
+            if (_pendingRequests.TryRemove(nonce, out var removed))
+                removed.TrySetResult(null);
+        });
+
+        try { return await tcs.Task; }
+        finally { await reg.DisposeAsync(); }
+    }
+
     public async Task ForceReauthAsync()
     {
         _accessToken = null;
@@ -133,7 +161,7 @@ public class DiscordRpcClient : IDisposable
         await SendCommandAsync("AUTHORIZE", new JObject
         {
             ["client_id"] = _clientId,
-            ["scopes"] = new JArray("rpc", "rpc.voice.read", "rpc.notifications.read", "identify", "guilds", "guilds.members.read")
+            ["scopes"] = new JArray("rpc", "rpc.voice.read", "rpc.notifications.read", "messages.read", "identify", "guilds", "guilds.members.read")
         });
     }
 
@@ -258,6 +286,9 @@ public class DiscordRpcClient : IDisposable
             var frame = JsonConvert.DeserializeObject<RpcFrame>(json);
             if (frame == null) return;
 
+            if (frame.Nonce != null && _pendingRequests.TryRemove(frame.Nonce, out var pendingTcs))
+                pendingTcs.TrySetResult(frame.Data);
+
             switch (frame.Command)
             {
                 case "DISPATCH":
@@ -273,6 +304,15 @@ public class DiscordRpcClient : IDisposable
                     HandleGetSelectedVoiceChannel(frame);
                     break;
                 case "SUBSCRIBE":
+                    if (frame.Event == "ERROR")
+                    {
+                        ConsoleUI.Log($"Subscription error: {frame.Data?["message"]}");
+                        var failedChannel = frame.Args?["channel_id"]?.ToString();
+                        if (failedChannel != null)
+                            lock (_subscribedTextChannels) _subscribedTextChannels.Remove(failedChannel);
+                    }
+                    break;
+                case "UNSUBSCRIBE":
                     break;
             }
         }
@@ -344,6 +384,15 @@ public class DiscordRpcClient : IDisposable
                 break;
             case "VOICE_CHANNEL_SELECT":
                 _ = SafeAsync(() => HandleVoiceChannelSelectAsync(frame));
+                break;
+            case "MESSAGE_CREATE":
+                if (frame.Data != null) OnMessageCreate?.Invoke(frame.Data);
+                break;
+            case "MESSAGE_UPDATE":
+                if (frame.Data != null) OnMessageUpdate?.Invoke(frame.Data);
+                break;
+            case "MESSAGE_DELETE":
+                if (frame.Data != null) OnMessageDelete?.Invoke(frame.Data);
                 break;
         }
     }
@@ -461,6 +510,39 @@ public class DiscordRpcClient : IDisposable
             OnError?.Invoke("Could not exchange authorization code");
             return null;
         }
+    }
+
+    public async Task<JObject?> GetGuildsAsync()
+    {
+        return await SendCommandWithResponseAsync("GET_GUILDS");
+    }
+
+    public async Task<JObject?> GetChannelsAsync(string guildId)
+    {
+        return await SendCommandWithResponseAsync("GET_CHANNELS", new JObject { ["guild_id"] = guildId });
+    }
+
+    public async Task SubscribeToTextChannel(string channelId)
+    {
+        var args = new JObject { ["channel_id"] = channelId };
+        await SendCommandAsync("SUBSCRIBE", args, "MESSAGE_CREATE");
+        await SendCommandAsync("SUBSCRIBE", args, "MESSAGE_UPDATE");
+        await SendCommandAsync("SUBSCRIBE", args, "MESSAGE_DELETE");
+        lock (_subscribedTextChannels) _subscribedTextChannels.Add(channelId);
+    }
+
+    public async Task UnsubscribeFromTextChannel(string channelId)
+    {
+        var args = new JObject { ["channel_id"] = channelId };
+        await SendCommandAsync("UNSUBSCRIBE", args, "MESSAGE_CREATE");
+        await SendCommandAsync("UNSUBSCRIBE", args, "MESSAGE_UPDATE");
+        await SendCommandAsync("UNSUBSCRIBE", args, "MESSAGE_DELETE");
+        lock (_subscribedTextChannels) _subscribedTextChannels.Remove(channelId);
+    }
+
+    public IReadOnlyCollection<string> GetSubscribedTextChannels()
+    {
+        lock (_subscribedTextChannels) return _subscribedTextChannels.ToArray();
     }
 
     public void Dispose()

@@ -20,6 +20,8 @@ public class AppSettings
     public bool AutoStartWithSteamVR { get; set; } = true;
     public int DiscordPipe { get; set; } = -1; // -1 = auto, 0-9 = specific pipe
 
+    public Dictionary<string, string> SavedSubscriptions { get; set; } = new();
+
     public int CardHeight { get; set; } = 52;
     public int CardPadding { get; set; } = 4;
     public float OverlayOpacity { get; set; } = 1.0f;
