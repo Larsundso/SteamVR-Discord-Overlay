@@ -9,10 +9,12 @@ A SteamVR overlay that shows your Discord voice channel members in VR. See who's
 - **Mute/deaf icons** - Distinguishes self-mute (gray) from server mute (red)
 - **Muted user collapsing** - Configurable threshold to collapse muted users into "... and N muted / N deafened"
 - **Notifications** - Shows pings/DMs as a card below the VC list with author avatar, name, and message content (auto-dismisses after 5s)
+- **Channel message subscriptions** - Subscribe to up to 5 text channels to see messages in both the VR overlay and the web dashboard. Supports message edits and deletes. Subscriptions persist across restarts.
 - **Mention resolution** - `@user`, `@role`, `#channel`, and `:emoji:` rendered as readable text in notifications
 - **Join/leave animations** - Users slide in from the left and phase out when leaving
-- **Channel header** - Shows channel name and user count
-- **Adjustable position** - Move, rotate, and angle the overlay in real-time from the console
+- **Channel header** - Shows channel name and voice connection status
+- **Web dashboard** - Browser-based control panel with live console, overlay controls, and channel subscription browser
+- **Adjustable position** - Move, rotate, and angle the overlay from the console or web dashboard
 - **Auto-start** - Registers with SteamVR to launch automatically
 - **Portable** - Single .exe, no install needed
 
@@ -29,9 +31,11 @@ Connects to Discord's local IPC pipe (`discord-ipc-0` through `discord-ipc-9`) u
 5. Discord will show an authorization popup - click **Authorize**
 6. Join a voice channel
 
-That's it. The overlay appears in VR showing your VC members.
+That's it. The overlay appears in VR showing your VC members. A web dashboard opens automatically at `http://localhost:39039`.
 
 ## Controls
+
+### Keyboard
 
 Press `?` in the console to see all controls.
 
@@ -44,9 +48,21 @@ Press `?` in the console to see all controls.
 | `M` | Toggle show only unmuted users |
 | `T` / `Shift+T` | Increase / decrease muted user threshold |
 | `S` | Save settings to file |
+| `P` | Cycle Discord pipe (auto, 0-9) |
 | `A` | Re-authorize Discord (new permission popup) |
 | `?` | Show controls |
 | `Ctrl+C` | Exit |
+
+### Web Dashboard
+
+Opens automatically at `http://localhost:39039`. Provides:
+
+- **Overlay controls** - Position, rotation, scale, opacity, display settings
+- **Channel browser** - Browse servers and text channels, subscribe with checkboxes
+- **Active subscriptions** - Quick-unsub list above the search filters
+- **Live console** - Color-coded log output with message display from subscribed channels
+- **Message tracking** - Edits show `(edited)`, deletes show strikethrough
+- **Discord controls** - Pipe selection, re-authorize button
 
 ## Settings
 
@@ -64,6 +80,8 @@ Settings are saved to `vr-discord-overlay-settings.json` next to the exe. Editab
 | `MutedUserThreshold` | 5 | Collapse muted users when count >= this |
 | `AutoStartWithSteamVR` | true | Launch with SteamVR |
 | `OverlayOpacity` | 1.0 | Overlay transparency |
+| `DiscordPipe` | -1 | IPC pipe (-1 = auto, 0-9 = specific) |
+| `SavedSubscriptions` | {} | Persisted channel subscriptions (id: name) |
 
 ## Building from source
 
@@ -86,8 +104,8 @@ VRDiscordOverlay/
     AppSettings.cs        Settings model + embedded Discord credentials
     SettingsManager.cs    JSON persistence
   Discord/
-    DiscordRpcClient.cs   IPC pipe connection, RPC protocol, auth flow
-    VoiceStateTracker.cs  User list, notifications, animations
+    DiscordRpcClient.cs   IPC pipe connection, RPC protocol, auth flow, message subscriptions
+    VoiceStateTracker.cs  User list, notifications, message events, animations
     Models/
       DiscordUser.cs      VoiceUser with display name, avatar, states
       RpcMessages.cs      RPC JSON models
@@ -96,6 +114,9 @@ VRDiscordOverlay/
     OverlayRenderer.cs    SkiaSharp 2D rendering (cards, icons, text)
   VR/
     SteamVrOverlay.cs     OpenVR overlay + D3D11 texture upload
+  Web/
+    WebServer.cs          Embedded Kestrel server, REST API, WebSocket broadcasts
+    DashboardHtml.cs      Full dashboard UI (HTML/CSS/JS) as embedded string
 ```
 
 ## Tech stack
@@ -105,6 +126,7 @@ VRDiscordOverlay/
 - **SkiaSharp** - 2D rendering (BGRA bitmaps)
 - **Vortice.Direct3D11** - Flicker-free texture upload to SteamVR
 - **OpenVR (OVRSharp)** - SteamVR overlay management
+- **ASP.NET Core (Kestrel)** - Embedded web server for dashboard
 
 ## Limitations
 
