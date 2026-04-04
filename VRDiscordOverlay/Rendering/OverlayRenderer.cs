@@ -305,11 +305,26 @@ public class OverlayRenderer
         canvas.Restore();
 
         float textX = xOffset + TextLeftMargin;
-        using var namePaint = new SKPaint { IsAntialias = true, Color = SKColors.White };
-        canvas.DrawText(n.AuthorName, textX, y + 20, _nameFont, namePaint);
 
-        string content = n.Content.Length > 50 ? n.Content[..50] + "..." : n.Content;
-        canvas.DrawText(content, textX, y + 38, _counterFont, _counterPaint);
+        if (!string.IsNullOrEmpty(n.GuildName))
+        {
+            var header = $"#{n.ChannelName} • {n.GuildName}";
+            using var headerPaint = new SKPaint { IsAntialias = true, Color = new SKColor(88, 101, 242) };
+            canvas.DrawText(header, textX, y + 16, _counterFont, headerPaint);
+
+            var line2 = $"{n.AuthorName}: {n.Content}";
+            if (line2.Length > 50) line2 = line2[..50] + "...";
+            using var line2Paint = new SKPaint { IsAntialias = true, Color = new SKColor(200, 200, 200) };
+            canvas.DrawText(line2, textX, y + 36, _counterFont, line2Paint);
+        }
+        else
+        {
+            using var namePaint = new SKPaint { IsAntialias = true, Color = SKColors.White };
+            canvas.DrawText(n.AuthorName, textX, y + 20, _nameFont, namePaint);
+
+            string content = n.Content.Length > 50 ? n.Content[..50] + "..." : n.Content;
+            canvas.DrawText(content, textX, y + 38, _counterFont, _counterPaint);
+        }
     }
 
     private void DrawUserCard(SKCanvas canvas, VoiceUser user, int xOffset, int y, int width, int height, bool isMutedSection)

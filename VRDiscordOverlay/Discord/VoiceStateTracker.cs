@@ -8,6 +8,7 @@ namespace VRDiscordOverlay.Discord;
 public class VoiceStateTracker
 {
     private readonly ConcurrentDictionary<string, VoiceUser> _users = new();
+    private readonly ConcurrentDictionary<string, (string Channel, string Guild)> _channelInfo = new();
     private readonly List<OverlayNotification> _notifications = new();
     private readonly HttpClient _httpClient = new();
     private readonly object _lock = new();
@@ -30,6 +31,11 @@ public class VoiceStateTracker
     public string? CurrentGuildId => _currentGuildId;
     public string? CurrentChannelName { get; private set; }
     public string VoiceConnectionState { get; private set; } = "DISCONNECTED";
+
+    public void RegisterChannelInfo(string channelId, string channelName, string guildName)
+    {
+        _channelInfo[channelId] = (channelName, guildName);
+    }
 
     public void HandleVoiceConnectionStatus(string state)
     {
@@ -126,6 +132,41 @@ public class VoiceStateTracker
             user.IsSpeaking = false;
             OnStateChanged?.Invoke();
         }
+    }
+
+    public void HandleMessageCreate(Newtonsoft.Json.Linq.JObject data)
+    {
+        var msg = data["message"];
+        if (msg == null) return;
+
+        var author = msg["author"];
+        if (author == null) return;
+
+        var content = msg["content"]?.ToString() ?? "";
+        content = ResolveMentions(content, msg);
+
+        var channelId = data["channel_id"]?.ToString() ?? "";
+        _channelInfo.TryGetValue(channelId, out var info);
+
+        var notification = new OverlayNotification
+        {
+            AuthorId = author["id"]?.ToString() ?? "",
+            AuthorName = msg["nick"]?.ToString()
+                         ?? author["global_name"]?.ToString()
+                         ?? author["username"]?.ToString() ?? "Unknown",
+            AuthorAvatarHash = author["avatar"]?.ToString(),
+            Content = string.IsNullOrWhiteSpace(content)
+                ? "[Open Discord to view]"
+                : content,
+            ChannelName = info.Channel ?? channelId,
+            GuildName = info.Guild,
+            CreatedAt = DateTime.UtcNow,
+            AnimationProgress = 0f,
+        };
+
+        lock (_lock) { _notifications.Add(notification); }
+        _ = LoadAvatarForNotification(notification);
+        OnStateChanged?.Invoke();
     }
 
     public void HandleNotification(Newtonsoft.Json.Linq.JObject data)
