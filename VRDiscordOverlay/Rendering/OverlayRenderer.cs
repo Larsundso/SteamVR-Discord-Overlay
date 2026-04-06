@@ -443,9 +443,44 @@ public class OverlayRenderer
         canvas.DrawCircle(cx, cy, radius, borderPaint);
     }
 
-    private void DrawMuteIcon(SKCanvas canvas, int x, int y, int size, bool isServerMute)
+    public (byte[] pixels, int width, int height) RenderButton(string type, bool isActive)
     {
-        var color = isServerMute ? new SKColor(237, 66, 69) : new SKColor(180, 180, 180);
+        const int w = 80;
+        const int h = 96;
+        const int circleR = 34;
+        const int iconSize = 30;
+        int circleY = 40;
+
+        var info = new SKImageInfo(w, h, SKColorType.Bgra8888, SKAlphaType.Premul);
+        using var bitmap = new SKBitmap(info);
+        using var canvas = new SKCanvas(bitmap);
+        canvas.Clear(SKColors.Transparent);
+
+        var bgColor = isActive
+            ? new SKColor(237, 66, 69, 220)
+            : new SKColor(67, 181, 129, 220);
+        using var bgPaint = new SKPaint { IsAntialias = true, Color = bgColor };
+        canvas.DrawCircle(w / 2f, circleY, circleR, bgPaint);
+
+        int iconX = (w - iconSize) / 2;
+        int iconY = circleY - iconSize / 2;
+
+        if (type == "mute")
+            DrawMuteIcon(canvas, iconX, iconY, iconSize, false, SKColors.White);
+        else
+            DrawDeafIcon(canvas, iconX, iconY, iconSize, false, SKColors.White);
+
+        var label = type == "mute" ? "MUTE" : "DEAFEN";
+        using var labelPaint = new SKPaint { IsAntialias = true, Color = new SKColor(220, 220, 220, 200) };
+        float labelW = _counterPaint.MeasureText(label);
+        canvas.DrawText(label, (w - labelW) / 2f, h - 6, _counterFont, labelPaint);
+
+        return (bitmap.Bytes, w, h);
+    }
+
+    private void DrawMuteIcon(SKCanvas canvas, int x, int y, int size, bool isServerMute, SKColor? colorOverride = null)
+    {
+        var color = colorOverride ?? (isServerMute ? new SKColor(237, 66, 69) : new SKColor(180, 180, 180));
         using var paint = new SKPaint
         {
             IsAntialias = true,
@@ -478,9 +513,9 @@ public class OverlayRenderer
         canvas.DrawLine(x + 2, y + size - 2, x + size - 2, y + 2, slashPaint);
     }
 
-    private void DrawDeafIcon(SKCanvas canvas, int x, int y, int size, bool isServerDeaf)
+    private void DrawDeafIcon(SKCanvas canvas, int x, int y, int size, bool isServerDeaf, SKColor? colorOverride = null)
     {
-        var color = isServerDeaf ? new SKColor(237, 66, 69) : new SKColor(180, 180, 180);
+        var color = colorOverride ?? (isServerDeaf ? new SKColor(237, 66, 69) : new SKColor(180, 180, 180));
         using var paint = new SKPaint
         {
             IsAntialias = true,

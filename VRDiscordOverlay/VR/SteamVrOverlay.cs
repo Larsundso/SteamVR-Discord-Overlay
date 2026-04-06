@@ -22,6 +22,8 @@ public class SteamVrOverlay : IDisposable
     private int _texWidth, _texHeight;
 
     public bool IsInitialized => _initialized;
+    public ID3D11Device? D3dDevice => _d3dDevice;
+    public ID3D11DeviceContext? D3dContext => _d3dContext;
 
     public SteamVrOverlay(AppSettings settings)
     {

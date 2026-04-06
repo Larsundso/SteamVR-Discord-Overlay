@@ -25,4 +25,7 @@ public class AppSettings
     public int CardHeight { get; set; } = 52;
     public int CardPadding { get; set; } = 4;
     public float OverlayOpacity { get; set; } = 1.0f;
+
+    public ButtonSettings MuteButton { get; set; } = new();
+    public ButtonSettings DeafenButton { get; set; } = new() { X = 0.05f };
 }
