@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using Valve.VR;
 using VRDiscordOverlay.Config;
 using VRDiscordOverlay.Discord;
 using VRDiscordOverlay.Rendering;
@@ -13,6 +14,18 @@ class Program
     {
         Console.Title = "Discord VC Overlay";
 
+        try { await Run(args); }
+        catch (Exception ex)
+        {
+            var logPath = Path.Combine(
+                Path.GetDirectoryName(Environment.ProcessPath) ?? ".",
+                "crash.log");
+            File.WriteAllText(logPath, $"{DateTime.Now}\n{ex}");
+        }
+    }
+
+    static async Task Run(string[] args)
+    {
         var settings = SettingsManager.Load();
         var webServer = new WebServer(settings);
         var cts = new CancellationTokenSource();
@@ -32,9 +45,38 @@ class Program
             return;
         }
 
+        int redrawFlag = 1;
+        int buttonRedrawFlag = 0;
+
         var renderer = new OverlayRenderer(settings);
         var voiceTracker = new VoiceStateTracker();
         var discord = new DiscordRpcClient(AppSettings.DiscordClientId, AppSettings.DiscordClientSecret);
+
+        var muteBtn = new VrButton("vr.discord.mute", "Mute", overlay.D3dDevice!, overlay.D3dContext!);
+        var deafenBtn = new VrButton("vr.discord.deafen", "Deafen", overlay.D3dDevice!, overlay.D3dContext!);
+        muteBtn.Initialize();
+        deafenBtn.Initialize();
+        bool isMuted = false, isDeafened = false;
+
+        void RenderButtons()
+        {
+            var (mp, mw, mh) = renderer.RenderButton("mute", isMuted);
+            muteBtn.SetTexture(mp, mw, mh);
+            var (dp, dw, dh) = renderer.RenderButton("deafen", isDeafened);
+            deafenBtn.SetTexture(dp, dw, dh);
+        }
+
+        void UpdateButtonPositions()
+        {
+            muteBtn.UpdatePosition(settings.MuteButton);
+            deafenBtn.UpdatePosition(settings.DeafenButton);
+        }
+
+        muteBtn.OnClicked += () => _ = discord.SetVoiceSettingsAsync(mute: !isMuted);
+        deafenBtn.OnClicked += () => _ = discord.SetVoiceSettingsAsync(deaf: !isDeafened);
+
+        UpdateButtonPositions();
+        RenderButtons();
 
         discord.OnVoiceStateCreate += voiceTracker.HandleVoiceStateCreate;
         discord.OnVoiceStateUpdate += voiceTracker.HandleVoiceStateUpdate;
@@ -51,6 +93,12 @@ class Program
                 channel = voiceTracker.CurrentChannelName,
                 pipe = discord.ConnectedPipe
             });
+        };
+        discord.OnVoiceSettingsUpdate += (m, d) =>
+        {
+            isMuted = m;
+            isDeafened = d;
+            Interlocked.Exchange(ref buttonRedrawFlag, 1);
         };
         discord.OnVoiceChannelSelect += async (channel) =>
         {
@@ -98,6 +146,14 @@ class Program
                     ConsoleUI.Log($"Restored {count} channel subscription(s)");
                 });
             }
+
+            _ = Task.Run(async () =>
+            {
+                var (m, d) = await discord.GetVoiceSettingsAsync();
+                isMuted = m;
+                isDeafened = d;
+                Interlocked.Exchange(ref buttonRedrawFlag, 1);
+            });
         };
 
         discord.OnMessageCreate += (data) =>
@@ -112,8 +168,6 @@ class Program
         discord.OnDisconnected += () => ConsoleUI.Log("Disconnected from Discord");
 
         Console.CancelKeyPress += (_, e) => { e.Cancel = true; cts.Cancel(); };
-
-        int redrawFlag = 1;
 
         webServer.RegisterChannelInfo = (id, ch, guild) => voiceTracker.RegisterChannelInfo(id, ch, guild);
         webServer.GetGuilds = () => discord.GetGuildsAsync();
@@ -132,13 +186,10 @@ class Program
                     SettingsManager.Save(settings);
                     _ = discord.ForceReauthAsync();
                     break;
-                case "save":
-                    SettingsManager.Save(settings);
-                    ConsoleUI.Log("Settings saved!");
-                    break;
                 case "settings_changed":
-                    overlay.UpdatePosition();
+                    SettingsManager.Save(settings);
                     Interlocked.Exchange(ref redrawFlag, 1);
+                    Interlocked.Exchange(ref buttonRedrawFlag, 1);
                     break;
             }
         };
@@ -157,7 +208,8 @@ class Program
             return;
         }
 
-        try { Process.Start(new ProcessStartInfo($"http://localhost:{webServer.Port}") { UseShellExecute = true }); }
+        Process? browserProcess = null;
+        try { browserProcess = Process.Start(new ProcessStartInfo($"http://localhost:{webServer.Port}") { UseShellExecute = true }); }
         catch { }
 
         var lastFrame = DateTime.UtcNow;
@@ -175,6 +227,21 @@ class Program
                 lastFrame = now;
 
                 voiceTracker.UpdateAnimations(deltaTime);
+                bool dashboardVisible = OpenVR.Overlay.IsDashboardVisible();
+                if (dashboardVisible && settings.MuteButton.Enabled) muteBtn.Show();
+                else muteBtn.Hide();
+                if (dashboardVisible && settings.DeafenButton.Enabled) deafenBtn.Show();
+                else deafenBtn.Hide();
+
+                muteBtn.PollClick();
+                deafenBtn.PollClick();
+
+                if (Interlocked.Exchange(ref buttonRedrawFlag, 0) == 1)
+                {
+                    overlay.UpdatePosition();
+                    UpdateButtonPositions();
+                    RenderButtons();
+                }
 
                 if (Interlocked.Exchange(ref redrawFlag, 0) == 1)
                 {
@@ -194,7 +261,10 @@ class Program
         }
         catch (OperationCanceledException) { }
 
+        try { if (browserProcess is { HasExited: false }) browserProcess.Kill(); } catch { }
         discord.Dispose();
+        muteBtn.Dispose();
+        deafenBtn.Dispose();
         overlay.Dispose();
     }
 

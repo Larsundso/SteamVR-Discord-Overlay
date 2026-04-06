@@ -63,9 +63,13 @@ public class WebServer
                 var prop = typeof(AppSettings).GetProperty(kv.Key);
                 if (prop == null || !prop.CanWrite) continue;
 
-                var val = Convert.ChangeType(
-                    kv.Value is Newtonsoft.Json.Linq.JToken jt ? jt.ToObject(prop.PropertyType) : kv.Value,
-                    prop.PropertyType);
+                object? val;
+                if (kv.Value is Newtonsoft.Json.Linq.JToken jt)
+                    val = jt.ToObject(prop.PropertyType);
+                else if (prop.PropertyType.IsClass && prop.PropertyType != typeof(string) && !prop.PropertyType.IsArray)
+                    val = JsonConvert.DeserializeObject(JsonConvert.SerializeObject(kv.Value), prop.PropertyType);
+                else
+                    val = Convert.ChangeType(kv.Value, prop.PropertyType);
                 prop.SetValue(_settings, val);
             }
 

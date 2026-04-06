@@ -382,8 +382,8 @@ public static class DashboardHtml
   <div>
     <h2>Rotation</h2>
     <div class="section">
-      <div class="control-row"><label>Yaw</label><div class="btn-row"><button class="btn sm" onclick="adj('OverlayYaw',-2)">-</button><span class="value" id="vYaw">0</span><button class="btn sm" onclick="adj('OverlayYaw',2)">+</button></div></div>
-      <div class="control-row"><label>Pitch</label><div class="btn-row"><button class="btn sm" onclick="adj('OverlayPitch',-2)">-</button><span class="value" id="vPitch">0</span><button class="btn sm" onclick="adj('OverlayPitch',2)">+</button></div></div>
+      <div class="slider-row"><label>Yaw</label><input type="range" min="-180" max="180" step="1" id="sYaw" oninput="set('OverlayYaw',this.value)"><span class="slider-val" id="vYaw">0</span></div>
+      <div class="slider-row"><label>Pitch</label><input type="range" min="-180" max="180" step="1" id="sPitch" oninput="set('OverlayPitch',this.value)"><span class="slider-val" id="vPitch">0</span></div>
     </div>
   </div>
 
@@ -416,6 +416,38 @@ public static class DashboardHtml
   </div>
 
   <div>
+    <h2>Mute Button</h2>
+    <div class="section">
+      <div class="toggle-row"><label>Enabled</label><label class="toggle"><input type="checkbox" id="tMuteEnabled" onchange="setNested('MuteButton','Enabled',this.checked)"><span class="slider"></span></label></div>
+      <div class="control-row"><label>Attach to</label><select id="sMuteAttach" onchange="setNested('MuteButton','AttachTo',this.value)" style="background:#4e5058;border:none;color:#dcddde;padding:4px 8px;border-radius:4px;font-size:12px"><option value="left">Left Controller</option><option value="right">Right Controller</option><option value="hmd">HMD</option><option value="playspace">Playspace</option></select></div>
+      <div class="control-row"><label>X</label><div class="btn-row"><button class="btn sm" onclick="adjNested('MuteButton','X',-0.01)">-</button><span class="value" id="vMuteX">0</span><button class="btn sm" onclick="adjNested('MuteButton','X',0.01)">+</button></div></div>
+      <div class="control-row"><label>Y</label><div class="btn-row"><button class="btn sm" onclick="adjNested('MuteButton','Y',-0.01)">-</button><span class="value" id="vMuteY">0</span><button class="btn sm" onclick="adjNested('MuteButton','Y',0.01)">+</button></div></div>
+      <div class="control-row"><label>Z</label><div class="btn-row"><button class="btn sm" onclick="adjNested('MuteButton','Z',-0.01)">-</button><span class="value" id="vMuteZ">0</span><button class="btn sm" onclick="adjNested('MuteButton','Z',0.01)">+</button></div></div>
+      <div class="slider-row"><label>Yaw</label><input type="range" min="-180" max="180" step="1" id="sMuteYaw" oninput="setNested('MuteButton','Yaw',this.value)"><span class="slider-val" id="vMuteYaw">0</span></div>
+      <div class="slider-row"><label>Pitch</label><input type="range" min="-180" max="180" step="1" id="sMutePitch" oninput="setNested('MuteButton','Pitch',this.value)"><span class="slider-val" id="vMutePitch">0</span></div>
+      <div class="slider-row"><label>Rotation</label><input type="range" min="-180" max="180" step="1" id="sMuteRot" oninput="setNested('MuteButton','Rotation',this.value)"><span class="slider-val" id="vMuteRot">0</span></div>
+      <div class="slider-row"><label>Scale</label><input type="range" min="0.01" max="0.1" step="0.005" id="sMuteScale" oninput="setNested('MuteButton','Scale',this.value)"><span class="slider-val" id="vMuteScale">0.04</span></div>
+      <div class="slider-row"><label>Opacity</label><input type="range" min="0.1" max="1.0" step="0.05" id="sMuteOpacity" oninput="setNested('MuteButton','Opacity',this.value)"><span class="slider-val" id="vMuteOpacity">0.9</span></div>
+    </div>
+  </div>
+
+  <div>
+    <h2>Deafen Button</h2>
+    <div class="section">
+      <div class="toggle-row"><label>Enabled</label><label class="toggle"><input type="checkbox" id="tDeafenEnabled" onchange="setNested('DeafenButton','Enabled',this.checked)"><span class="slider"></span></label></div>
+      <div class="control-row"><label>Attach to</label><select id="sDeafenAttach" onchange="setNested('DeafenButton','AttachTo',this.value)" style="background:#4e5058;border:none;color:#dcddde;padding:4px 8px;border-radius:4px;font-size:12px"><option value="left">Left Controller</option><option value="right">Right Controller</option><option value="hmd">HMD</option><option value="playspace">Playspace</option></select></div>
+      <div class="control-row"><label>X</label><div class="btn-row"><button class="btn sm" onclick="adjNested('DeafenButton','X',-0.01)">-</button><span class="value" id="vDeafenX">0</span><button class="btn sm" onclick="adjNested('DeafenButton','X',0.01)">+</button></div></div>
+      <div class="control-row"><label>Y</label><div class="btn-row"><button class="btn sm" onclick="adjNested('DeafenButton','Y',-0.01)">-</button><span class="value" id="vDeafenY">0</span><button class="btn sm" onclick="adjNested('DeafenButton','Y',0.01)">+</button></div></div>
+      <div class="control-row"><label>Z</label><div class="btn-row"><button class="btn sm" onclick="adjNested('DeafenButton','Z',-0.01)">-</button><span class="value" id="vDeafenZ">0</span><button class="btn sm" onclick="adjNested('DeafenButton','Z',0.01)">+</button></div></div>
+      <div class="slider-row"><label>Yaw</label><input type="range" min="-180" max="180" step="1" id="sDeafenYaw" oninput="setNested('DeafenButton','Yaw',this.value)"><span class="slider-val" id="vDeafenYaw">0</span></div>
+      <div class="slider-row"><label>Pitch</label><input type="range" min="-180" max="180" step="1" id="sDeafenPitch" oninput="setNested('DeafenButton','Pitch',this.value)"><span class="slider-val" id="vDeafenPitch">0</span></div>
+      <div class="slider-row"><label>Rotation</label><input type="range" min="-180" max="180" step="1" id="sDeafenRot" oninput="setNested('DeafenButton','Rotation',this.value)"><span class="slider-val" id="vDeafenRot">0</span></div>
+      <div class="slider-row"><label>Scale</label><input type="range" min="0.01" max="0.1" step="0.005" id="sDeafenScale" oninput="setNested('DeafenButton','Scale',this.value)"><span class="slider-val" id="vDeafenScale">0.04</span></div>
+      <div class="slider-row"><label>Opacity</label><input type="range" min="0.1" max="1.0" step="0.05" id="sDeafenOpacity" oninput="setNested('DeafenButton','Opacity',this.value)"><span class="slider-val" id="vDeafenOpacity">0.9</span></div>
+    </div>
+  </div>
+
+  <div>
     <h2>Discord</h2>
     <div class="section">
       <div class="control-row">
@@ -426,7 +458,6 @@ public static class DashboardHtml
     </div>
   </div>
 
-  <button class="btn" style="width:100%;margin-top:8px;padding:8px" onclick="saveSettings()">Save settings</button>
 </div>
 
 <div class="main">
@@ -516,7 +547,9 @@ async function loadSettings() {
   document.getElementById('vY').textContent = settings.OverlayY?.toFixed(2);
   document.getElementById('vZ').textContent = settings.OverlayZ?.toFixed(2);
   document.getElementById('vYaw').textContent = settings.OverlayYaw?.toFixed(0);
+  document.getElementById('sYaw').value = settings.OverlayYaw;
   document.getElementById('vPitch').textContent = settings.OverlayPitch?.toFixed(0);
+  document.getElementById('sPitch').value = settings.OverlayPitch;
   document.getElementById('vWidth').textContent = settings.OverlayWidth?.toFixed(2);
   document.getElementById('sWidth').value = settings.OverlayWidth;
   document.getElementById('vOpacity').textContent = settings.OverlayOpacity?.toFixed(2);
@@ -525,6 +558,40 @@ async function loadSettings() {
   document.getElementById('tUnmuted').checked = settings.ShowOnlyUnmuted;
   document.getElementById('tAutoStart').checked = settings.AutoStartWithSteamVR;
   document.getElementById('vPipe').textContent = settings.DiscordPipe === -1 ? 'auto' : settings.DiscordPipe;
+
+  var mb = settings.MuteButton || {};
+  document.getElementById('tMuteEnabled').checked = mb.Enabled !== false;
+  document.getElementById('sMuteAttach').value = mb.AttachTo || 'left';
+  document.getElementById('vMuteX').textContent = (mb.X || 0).toFixed(2);
+  document.getElementById('vMuteY').textContent = (mb.Y || 0).toFixed(2);
+  document.getElementById('vMuteZ').textContent = (mb.Z || 0).toFixed(2);
+  document.getElementById('vMuteYaw').textContent = (mb.Yaw || 0).toFixed(0);
+  document.getElementById('sMuteYaw').value = mb.Yaw || 0;
+  document.getElementById('vMutePitch').textContent = (mb.Pitch || 0).toFixed(0);
+  document.getElementById('sMutePitch').value = mb.Pitch || 0;
+  document.getElementById('vMuteRot').textContent = (mb.Rotation || 0).toFixed(0);
+  document.getElementById('sMuteRot').value = mb.Rotation || 0;
+  document.getElementById('sMuteScale').value = mb.Scale || 0.04;
+  document.getElementById('vMuteScale').textContent = (mb.Scale || 0.04).toFixed(3);
+  document.getElementById('sMuteOpacity').value = mb.Opacity || 0.9;
+  document.getElementById('vMuteOpacity').textContent = (mb.Opacity || 0.9).toFixed(2);
+
+  var db = settings.DeafenButton || {};
+  document.getElementById('tDeafenEnabled').checked = db.Enabled !== false;
+  document.getElementById('sDeafenAttach').value = db.AttachTo || 'left';
+  document.getElementById('vDeafenX').textContent = (db.X || 0).toFixed(2);
+  document.getElementById('vDeafenY').textContent = (db.Y || 0).toFixed(2);
+  document.getElementById('vDeafenZ').textContent = (db.Z || 0).toFixed(2);
+  document.getElementById('vDeafenYaw').textContent = (db.Yaw || 0).toFixed(0);
+  document.getElementById('sDeafenYaw').value = db.Yaw || 0;
+  document.getElementById('vDeafenPitch').textContent = (db.Pitch || 0).toFixed(0);
+  document.getElementById('sDeafenPitch').value = db.Pitch || 0;
+  document.getElementById('vDeafenRot').textContent = (db.Rotation || 0).toFixed(0);
+  document.getElementById('sDeafenRot').value = db.Rotation || 0;
+  document.getElementById('sDeafenScale').value = db.Scale || 0.04;
+  document.getElementById('vDeafenScale').textContent = (db.Scale || 0.04).toFixed(3);
+  document.getElementById('sDeafenOpacity').value = db.Opacity || 0.9;
+  document.getElementById('vDeafenOpacity').textContent = (db.Opacity || 0.9).toFixed(2);
 }
 
 async function adj(key, delta) {
@@ -544,9 +611,18 @@ async function cmd(name) {
   await fetch(`/api/command/${name}`, { method: 'POST' });
 }
 
-async function saveSettings() {
-  await cmd('save');
-  addLog('Settings saved!');
+async function setNested(parent, key, value) {
+  if (typeof value === 'string' && !isNaN(value)) value = parseFloat(value);
+  if (!settings[parent]) settings[parent] = {};
+  settings[parent][key] = value;
+  await fetch('/api/settings', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({[parent]: settings[parent]}) });
+  loadSettings();
+}
+
+async function adjNested(parent, key, delta) {
+  if (!settings[parent]) settings[parent] = {};
+  settings[parent][key] = (settings[parent][key] || 0) + delta;
+  await setNested(parent, key, settings[parent][key]);
 }
 
 function cyclePipe(dir) {
