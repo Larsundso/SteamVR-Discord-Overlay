@@ -15,8 +15,10 @@ https://github.com/user-attachments/assets/85ef2525-d72c-4974-ad15-4cc2b934efd7
 - **Mention resolution** - `@user`, `@role`, `#channel`, and `:emoji:` rendered as readable text in notifications
 - **Join/leave animations** - Users slide in from the left and phase out when leaving
 - **Channel header** - Shows channel name and voice connection status
-- **Web dashboard** - Browser-based control panel with live console, overlay controls, and channel subscription browser
+- **Mute/deafen buttons** - Interactive buttons visible in the SteamVR dashboard. Attach to left/right controller, HMD, or playspace. Configurable position, rotation, scale, and opacity. Green when active, red when muted/deafened.
+- **Web dashboard** - Browser-based control panel with live console, overlay controls, channel subscription browser, and mute/deafen button settings
 - **Adjustable position** - Move, rotate, and angle the overlay from the console or web dashboard
+- **Auto-save** - All settings changes save automatically
 - **Auto-start** - Registers with SteamVR to launch automatically
 - **Portable** - Single .exe, no install needed
 
@@ -49,7 +51,7 @@ Press `?` in the console to see all controls.
 | `R` / `F` | Tilt up / down (pitch) |
 | `M` | Toggle show only unmuted users |
 | `T` / `Shift+T` | Increase / decrease muted user threshold |
-| `S` | Save settings to file |
+| `S` | Save settings to file (also auto-saves on change) |
 | `P` | Cycle Discord pipe (auto, 0-9) |
 | `A` | Re-authorize Discord (new permission popup) |
 | `?` | Show controls |
@@ -64,6 +66,7 @@ Opens automatically at `http://localhost:39039`. Provides:
 - **Active subscriptions** - Quick-unsub list above the search filters
 - **Live console** - Color-coded log output with message display from subscribed channels
 - **Message tracking** - Edits show `(edited)`, deletes show strikethrough
+- **Mute/deafen button settings** - Enable/disable, attach target, position, rotation, scale, opacity
 - **Discord controls** - Pipe selection, re-authorize button
 
 ## Settings
@@ -84,6 +87,8 @@ Settings are saved to `vr-discord-overlay-settings.json` next to the exe. Editab
 | `OverlayOpacity` | 1.0 | Overlay transparency |
 | `DiscordPipe` | -1 | IPC pipe (-1 = auto, 0-9 = specific) |
 | `SavedSubscriptions` | {} | Persisted channel subscriptions (id: name) |
+| `MuteButton` | {...} | Mute button settings (Enabled, AttachTo, X/Y/Z, Yaw/Pitch/Rotation, Scale, Opacity) |
+| `DeafenButton` | {...} | Deafen button settings (same fields as MuteButton) |
 
 ## Building from source
 
@@ -104,6 +109,7 @@ VRDiscordOverlay/
   ConsoleUI.cs            Pinned status bar console
   Config/
     AppSettings.cs        Settings model + embedded Discord credentials
+    ButtonSettings.cs     Mute/deafen button settings model
     SettingsManager.cs    JSON persistence
   Discord/
     DiscordRpcClient.cs   IPC pipe connection, RPC protocol, auth flow, message subscriptions
@@ -116,6 +122,7 @@ VRDiscordOverlay/
     OverlayRenderer.cs    SkiaSharp 2D rendering (cards, icons, text)
   VR/
     SteamVrOverlay.cs     OpenVR overlay + D3D11 texture upload
+    VrButton.cs           Interactive mute/deafen button overlays
   Web/
     WebServer.cs          Embedded Kestrel server, REST API, WebSocket broadcasts
     DashboardHtml.cs      Full dashboard UI (HTML/CSS/JS) as embedded string
