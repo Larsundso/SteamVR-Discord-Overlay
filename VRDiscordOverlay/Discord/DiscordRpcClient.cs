@@ -38,6 +38,7 @@ public class DiscordRpcClient : IDisposable
     public event Action<JObject>? OnMessageCreate;
     public event Action<JObject>? OnMessageUpdate;
     public event Action<JObject>? OnMessageDelete;
+    public event Action<bool, bool>? OnVoiceSettingsUpdate;
 
     public string? AccessToken => _accessToken;
     public bool IsConnected => _pipe?.IsConnected ?? false;
@@ -161,7 +162,7 @@ public class DiscordRpcClient : IDisposable
         await SendCommandAsync("AUTHORIZE", new JObject
         {
             ["client_id"] = _clientId,
-            ["scopes"] = new JArray("rpc", "rpc.voice.read", "rpc.notifications.read", "messages.read", "identify", "guilds", "guilds.members.read")
+            ["scopes"] = new JArray("rpc", "rpc.voice.read", "rpc.voice.write", "rpc.notifications.read", "messages.read", "identify", "guilds", "guilds.members.read")
         });
     }
 
@@ -394,6 +395,14 @@ public class DiscordRpcClient : IDisposable
             case "MESSAGE_DELETE":
                 if (frame.Data != null) OnMessageDelete?.Invoke(frame.Data);
                 break;
+            case "VOICE_SETTINGS_UPDATE":
+                if (frame.Data != null)
+                {
+                    bool m = frame.Data["mute"]?.Value<bool>() ?? false;
+                    bool d = frame.Data["deaf"]?.Value<bool>() ?? false;
+                    OnVoiceSettingsUpdate?.Invoke(m, d);
+                }
+                break;
         }
     }
 
@@ -444,6 +453,7 @@ public class DiscordRpcClient : IDisposable
         await SubscribeToVoiceChannelSelect();
         await SendCommandAsync("SUBSCRIBE", null, "NOTIFICATION_CREATE");
         await SendCommandAsync("SUBSCRIBE", null, "VOICE_CONNECTION_STATUS");
+        await SendCommandAsync("SUBSCRIBE", null, "VOICE_SETTINGS_UPDATE");
         await GetSelectedVoiceChannel();
     }
 
@@ -510,6 +520,21 @@ public class DiscordRpcClient : IDisposable
             OnError?.Invoke("Could not exchange authorization code");
             return null;
         }
+    }
+
+    public async Task<(bool muted, bool deafened)> GetVoiceSettingsAsync()
+    {
+        var result = await SendCommandWithResponseAsync("GET_VOICE_SETTINGS");
+        if (result == null) return (false, false);
+        return (result["mute"]?.Value<bool>() ?? false, result["deaf"]?.Value<bool>() ?? false);
+    }
+
+    public async Task SetVoiceSettingsAsync(bool? mute = null, bool? deaf = null)
+    {
+        var args = new JObject();
+        if (mute.HasValue) args["mute"] = mute.Value;
+        if (deaf.HasValue) args["deaf"] = deaf.Value;
+        await SendCommandAsync("SET_VOICE_SETTINGS", args);
     }
 
     public async Task<JObject?> GetGuildsAsync()
