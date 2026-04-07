@@ -2,9 +2,8 @@ namespace VRDiscordOverlay.Config;
 
 public class AppSettings
 {
-    public const string DiscordClientId = "1488318404933849089";
-    public const string DiscordClientSecret = "FpTIPZXOT-9XxD8xqAhdngJC1cuAWalY";
-
+    public string? DiscordClientId { get; set; }
+    public string? DiscordClientSecret { get; set; }
     public string? AccessToken { get; set; }
 
     public float OverlayX { get; set; } = -0.5f;

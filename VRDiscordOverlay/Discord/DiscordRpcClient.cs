@@ -508,7 +508,7 @@ public class DiscordRpcClient : IDisposable
 
             if (!response.IsSuccessStatusCode)
             {
-                OnError?.Invoke($"Authorization token exchange failed");
+                OnError?.Invoke($"Token exchange failed ({response.StatusCode}): {json}");
                 return null;
             }
 

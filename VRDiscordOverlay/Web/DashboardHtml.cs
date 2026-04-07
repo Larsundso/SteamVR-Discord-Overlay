@@ -351,6 +351,26 @@ public static class DashboardHtml
     display: inline;
   }
 
+  /* ===== Setup wizard ===== */
+  .setup-wizard {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    overflow-y: auto;
+  }
+  .setup-inner {
+    background: #2b2d31;
+    border-radius: 12px;
+    padding: 32px;
+    max-width: 520px;
+    width: 100%;
+  }
+  .setup-inner a { text-decoration: none; }
+  .setup-inner a:hover { text-decoration: underline; }
+  .setup-inner input:focus { border-color: #5865f2; }
+
   /* ===== Responsive: narrow screens ===== */
 
   @media (max-width: 800px) {
@@ -479,6 +499,31 @@ public static class DashboardHtml
       </div>
     </div>
     <div class="console" id="console"></div>
+    <div class="setup-wizard" id="setupWizard" style="display:none">
+      <div class="setup-inner">
+        <h2 style="font-size:18px;color:#dcddde;text-transform:none;letter-spacing:0;margin-bottom:16px">Discord App Setup</h2>
+        <p style="color:#b5bac1;font-size:13px;line-height:1.6;margin-bottom:12px">Each user needs their own Discord app. Follow these steps:</p>
+        <ol style="color:#b5bac1;font-size:13px;line-height:2;padding-left:20px;margin-bottom:20px">
+          <li>Go to <a href="https://discord.com/developers/applications" target="_blank" style="color:#5865f2">discord.com/developers/applications</a></li>
+          <li>Click <b style="color:#dcddde">New Application</b> and give it any name</li>
+          <li>Copy the <b style="color:#dcddde">Application ID</b> from the General Information page</li>
+          <li>Go to <b style="color:#dcddde">OAuth2</b> in the sidebar</li>
+          <li>Click <b style="color:#dcddde">Reset Secret</b> and copy the new Client Secret</li>
+          <li>Add <code style="background:#1a1b1e;padding:2px 6px;border-radius:3px">http://localhost</code> as a Redirect URI and save</li>
+          <li>Paste both values below and click Save</li>
+        </ol>
+        <div style="margin-bottom:10px">
+          <label style="font-size:12px;color:#8e9297;display:block;margin-bottom:4px">Application ID (Client ID)</label>
+          <input type="text" id="setupClientId" placeholder="e.g. 1234567890123456789" style="width:100%;padding:8px 10px;background:#1a1b1e;border:1px solid #3f4147;border-radius:4px;color:#dcddde;font-size:13px;font-family:inherit;outline:none">
+        </div>
+        <div style="margin-bottom:16px">
+          <label style="font-size:12px;color:#8e9297;display:block;margin-bottom:4px">Client Secret</label>
+          <input type="text" id="setupClientSecret" placeholder="e.g. AbCdEfGhIjKlMnOpQrStUvWxYz" style="width:100%;padding:8px 10px;background:#1a1b1e;border:1px solid #3f4147;border-radius:4px;color:#dcddde;font-size:13px;font-family:inherit;outline:none">
+        </div>
+        <button class="btn" style="width:100%;padding:10px;background:#5865f2;font-size:14px" onclick="saveDiscordApp()">Save & Connect</button>
+        <p id="setupError" style="color:#ed4245;font-size:12px;margin-top:8px;display:none"></p>
+      </div>
+    </div>
   </div>
   <div class="status-bar">
     <span><span class="dot gray" id="connDot"></span><span id="connText">Connecting...</span></span>
@@ -945,8 +990,45 @@ function deleteMessage(data) {
   if (existing) existing.classList.add('deleted');
 }
 
+async function saveDiscordApp() {
+  var clientId = document.getElementById('setupClientId').value.trim();
+  var clientSecret = document.getElementById('setupClientSecret').value.trim();
+  var errEl = document.getElementById('setupError');
+
+  if (!clientId || !clientSecret) {
+    errEl.textContent = 'Both fields are required.';
+    errEl.style.display = 'block';
+    return;
+  }
+  if (!/^\d{17,20}$/.test(clientId)) {
+    errEl.textContent = 'Client ID should be a number (17-20 digits).';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  errEl.style.display = 'none';
+  await fetch('/api/settings', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ DiscordClientId: clientId, DiscordClientSecret: clientSecret })
+  });
+  addLog('Discord app credentials saved! The app will connect automatically.');
+  document.getElementById('setupWizard').style.display = 'none';
+  document.getElementById('console').style.display = '';
+}
+
+async function checkSetup() {
+  var r = await fetch('/api/settings');
+  var s = await r.json();
+  if (!s.DiscordClientId || !s.DiscordClientSecret) {
+    document.getElementById('setupWizard').style.display = 'flex';
+    document.getElementById('console').style.display = 'none';
+  }
+}
+
 loadSettings();
 connect();
+checkSetup();
 setTimeout(loadGuilds, 1500);
 </script>
 </body>

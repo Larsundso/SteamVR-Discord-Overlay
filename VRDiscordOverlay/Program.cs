@@ -49,8 +49,23 @@ class Program
         int buttonRedrawFlag = 0;
 
         var renderer = new OverlayRenderer(settings);
+        if (string.IsNullOrEmpty(settings.DiscordClientId) || string.IsNullOrEmpty(settings.DiscordClientSecret))
+        {
+            ConsoleUI.Log("");
+            ConsoleUI.Log("Discord app not configured. Open the dashboard to set up:");
+            ConsoleUI.Log($"  http://localhost:{webServer.Port}");
+            ConsoleUI.Log("");
+
+            while (string.IsNullOrEmpty(settings.DiscordClientId) || string.IsNullOrEmpty(settings.DiscordClientSecret))
+            {
+                await Task.Delay(1000, cts.Token);
+                settings = SettingsManager.Load();
+            }
+            ConsoleUI.Log("Discord app configured! Continuing...");
+        }
+
         var voiceTracker = new VoiceStateTracker();
-        var discord = new DiscordRpcClient(AppSettings.DiscordClientId, AppSettings.DiscordClientSecret);
+        var discord = new DiscordRpcClient(settings.DiscordClientId, settings.DiscordClientSecret);
 
         var muteBtn = new VrButton("vr.discord.mute", "Mute", overlay.D3dDevice!, overlay.D3dContext!);
         var deafenBtn = new VrButton("vr.discord.deafen", "Deafen", overlay.D3dDevice!, overlay.D3dContext!);
