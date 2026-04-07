@@ -1,0 +1,64 @@
+Privacy Policy — VR Discord VC Overlay
+Last updated: April 2026
+
+1. Overview
+   VR Discord VC Overlay ("the Software") runs entirely on your local
+   machine. It does not collect, transmit, or store any data on external
+   servers. There is no telemetry, analytics, or crash reporting.
+
+2. Data Accessed
+   The Software accesses the following data from your local Discord client
+   via the Discord RPC IPC pipe:
+
+   - Voice channel membership (usernames, avatars, mute/deaf status)
+   - Voice connection state
+   - Speaking activity
+   - Notification content (pings, DMs) when subscribed
+   - Text channel messages when subscribed
+   - Guild and channel listings
+   - Voice settings (mute/deafen state)
+
+   This data is read directly from your running Discord client and is never
+   sent to any remote server.
+
+3. Data Stored Locally
+   The following is saved to a local settings file next to the executable
+   (vr-discord-overlay-settings.json):
+
+   - Discord OAuth2 access token (for re-authentication on restart)
+   - Discord Client ID and Client Secret (provided by you)
+   - Overlay position, rotation, scale, and display preferences
+   - Channel subscription IDs and names (up to 5)
+   - Mute/deafen button configuration
+
+   No data is stored in the cloud or transmitted externally.
+
+4. Third-Party Services
+   - Discord API: The Software communicates with Discord's local IPC pipe
+     and Discord's OAuth2 token endpoint (discord.com/api/oauth2/token) to
+     exchange authorization codes. No user content is sent to Discord's API
+     beyond what is required for authentication.
+   - Discord CDN: User avatars are loaded from cdn.discordapp.com.
+
+5. Web Dashboard
+   The embedded web dashboard runs on localhost (port 39039) and is only
+   accessible from your own machine. It does not expose any data to the
+   network.
+
+6. Data Sharing
+   The Software does not share any data with third parties. All processing
+   happens locally on your machine.
+
+7. Data Deletion
+   To delete all stored data, delete the vr-discord-overlay-settings.json
+   file next to the executable. To revoke Discord access, visit your Discord
+   settings under Authorized Apps and remove the application, or delete the
+   application in the Discord Developer Portal.
+
+8. Children's Privacy
+   The Software is not directed at children under 13. It requires a Discord
+   account, which itself requires users to be at least 13 years old.
+
+9. Contact
+   This is an open-source project. For questions or concerns, open an issue
+   on the GitHub repository.
