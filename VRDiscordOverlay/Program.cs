@@ -37,6 +37,10 @@ class Program
         ConsoleUI.Log($"Dashboard: http://localhost:{webServer.Port}");
         ConsoleUI.Log("");
 
+        Process? browserProcess = null;
+        try { browserProcess = Process.Start(new ProcessStartInfo($"http://localhost:{webServer.Port}") { UseShellExecute = true }); }
+        catch { }
+
         var overlay = new SteamVrOverlay(settings);
         if (!overlay.Initialize())
         {
@@ -222,10 +226,6 @@ class Program
             overlay.Dispose();
             return;
         }
-
-        Process? browserProcess = null;
-        try { browserProcess = Process.Start(new ProcessStartInfo($"http://localhost:{webServer.Port}") { UseShellExecute = true }); }
-        catch { }
 
         var lastFrame = DateTime.UtcNow;
 
