@@ -474,7 +474,8 @@ public static class DashboardHtml
         <label>Pipe</label>
         <div class="btn-row"><button class="btn sm" onclick="cyclePipe(-1)">-</button><span class="value" id="vPipe">auto</span><button class="btn sm" onclick="cyclePipe(1)">+</button></div>
       </div>
-      <button class="btn danger" style="width:100%;margin-top:8px" onclick="cmd('reauth')">Re-authorize Discord</button>
+      <button class="btn" style="width:100%;margin-top:8px" onclick="openSetupWizard()">Edit Discord App Credentials</button>
+      <button class="btn danger" style="width:100%;margin-top:6px" onclick="cmd('reauth')">Re-authorize Discord</button>
     </div>
   </div>
 
@@ -503,15 +504,18 @@ public static class DashboardHtml
       <div class="setup-inner">
         <h2 style="font-size:18px;color:#dcddde;text-transform:none;letter-spacing:0;margin-bottom:16px">Discord App Setup</h2>
         <p style="color:#b5bac1;font-size:13px;line-height:1.6;margin-bottom:12px">Each user needs their own Discord app. Follow these steps:</p>
-        <ol style="color:#b5bac1;font-size:13px;line-height:2;padding-left:20px;margin-bottom:20px">
+        <ol style="color:#b5bac1;font-size:13px;line-height:2;padding-left:20px;margin-bottom:16px">
           <li>Go to <a href="https://discord.com/developers/applications" target="_blank" style="color:#5865f2">discord.com/developers/applications</a></li>
           <li>Click <b style="color:#dcddde">New Application</b> and give it any name</li>
           <li>Copy the <b style="color:#dcddde">Application ID</b> from the General Information page</li>
-          <li>Go to <b style="color:#dcddde">OAuth2</b> in the sidebar</li>
+          <li>Open <b style="color:#dcddde">OAuth2</b> in the sidebar</li>
+          <li>Under <b style="color:#dcddde">Redirects</b>, add <code style="background:#1a1b1e;padding:2px 6px;border-radius:3px">http://localhost</code> and click <b style="color:#dcddde">Save Changes</b></li>
           <li>Click <b style="color:#dcddde">Reset Secret</b> and copy the new Client Secret</li>
-          <li>Add <code style="background:#1a1b1e;padding:2px 6px;border-radius:3px">http://localhost</code> as a Redirect URI and save</li>
-          <li>Paste both values below and click Save</li>
         </ol>
+        <div style="background:#1a1b1e;border-left:3px solid #faa81a;padding:10px 12px;margin-bottom:16px;border-radius:4px">
+          <p style="color:#faa81a;font-size:12px;font-weight:600;margin-bottom:4px">⚠ Don't skip the redirect step</p>
+          <p style="color:#b5bac1;font-size:12px;line-height:1.5">Authorization will fail with <code style="background:#2b2d31;padding:1px 4px;border-radius:2px">redirect_uri_mismatch</code> if you forgot to add <code style="background:#2b2d31;padding:1px 4px;border-radius:2px">http://localhost</code> as a Redirect URI on the OAuth2 page.</p>
+        </div>
         <div style="margin-bottom:10px">
           <label style="font-size:12px;color:#8e9297;display:block;margin-bottom:4px">Application ID (Client ID)</label>
           <input type="text" id="setupClientId" placeholder="e.g. 1234567890123456789" style="width:100%;padding:8px 10px;background:#1a1b1e;border:1px solid #3f4147;border-radius:4px;color:#dcddde;font-size:13px;font-family:inherit;outline:none">
@@ -520,7 +524,10 @@ public static class DashboardHtml
           <label style="font-size:12px;color:#8e9297;display:block;margin-bottom:4px">Client Secret</label>
           <input type="text" id="setupClientSecret" placeholder="e.g. AbCdEfGhIjKlMnOpQrStUvWxYz" style="width:100%;padding:8px 10px;background:#1a1b1e;border:1px solid #3f4147;border-radius:4px;color:#dcddde;font-size:13px;font-family:inherit;outline:none">
         </div>
-        <button class="btn" style="width:100%;padding:10px;background:#5865f2;font-size:14px" onclick="saveDiscordApp()">Save & Connect</button>
+        <div style="display:flex;gap:8px">
+          <button class="btn" style="flex:1;padding:10px;background:#5865f2;font-size:14px" onclick="saveDiscordApp()">Save & Connect</button>
+          <button class="btn" style="padding:10px 16px;font-size:14px" onclick="setupClose()">Cancel</button>
+        </div>
         <p id="setupError" style="color:#ed4245;font-size:12px;margin-top:8px;display:none"></p>
       </div>
     </div>
@@ -565,6 +572,8 @@ function addLog(text) {
   div.textContent = text;
   el.appendChild(div);
   el.scrollTop = el.scrollHeight;
+
+  if (typeof setupHandleLog === 'function') setupHandleLog(text);
 }
 
 let guildsLoaded = false;
@@ -990,31 +999,111 @@ function deleteMessage(data) {
   if (existing) existing.classList.add('deleted');
 }
 
+let setupWaiting = false;
+
 async function saveDiscordApp() {
   var clientId = document.getElementById('setupClientId').value.trim();
   var clientSecret = document.getElementById('setupClientSecret').value.trim();
   var errEl = document.getElementById('setupError');
 
   if (!clientId || !clientSecret) {
-    errEl.textContent = 'Both fields are required.';
-    errEl.style.display = 'block';
+    setupShowError('Both fields are required.');
     return;
   }
   if (!/^\d{17,20}$/.test(clientId)) {
-    errEl.textContent = 'Client ID should be a number (17-20 digits).';
-    errEl.style.display = 'block';
+    setupShowError('Client ID should be a number (17-20 digits).');
     return;
   }
 
   errEl.style.display = 'none';
+  document.querySelector('.setup-inner button').disabled = true;
+  document.querySelector('.setup-inner button').textContent = 'Authorizing... check Discord for the popup';
+  setupWaiting = true;
+
   await fetch('/api/settings', {
     method: 'POST',
     headers: {'Content-Type':'application/json'},
     body: JSON.stringify({ DiscordClientId: clientId, DiscordClientSecret: clientSecret })
   });
-  addLog('Discord app credentials saved! The app will connect automatically.');
+}
+
+function setupShowError(msg) {
+  var errEl = document.getElementById('setupError');
+  errEl.innerHTML = msg;
+  errEl.style.display = 'block';
+  var btn = document.querySelector('.setup-inner button');
+  btn.disabled = false;
+  btn.textContent = 'Save & Connect';
+}
+
+function setupClose() {
+  setupWaiting = false;
   document.getElementById('setupWizard').style.display = 'none';
   document.getElementById('console').style.display = '';
+}
+
+async function openSetupWizard(errorHtml) {
+  // Re-fetch latest settings to prefill fields
+  try {
+    var r = await fetch('/api/settings');
+    var s = await r.json();
+    if (s.DiscordClientId) document.getElementById('setupClientId').value = s.DiscordClientId;
+    if (s.DiscordClientSecret) document.getElementById('setupClientSecret').value = s.DiscordClientSecret;
+  } catch {}
+  document.getElementById('setupWizard').style.display = 'flex';
+  document.getElementById('console').style.display = 'none';
+  setupWaiting = false;
+  if (errorHtml) setupShowError(errorHtml);
+}
+
+function setupHandleLog(text) {
+  if (text.includes('Authenticated!') && setupWaiting) {
+    setupClose();
+    return;
+  }
+
+  // New preferred error: Discord rejected the AUTHORIZE itself (evt=ERROR)
+  if (text.includes('Discord rejected the authorization')) {
+    var hint;
+    if (text.includes('4006')) {
+      hint = '<b>Discord rejected the authorization (error 4006 — invalid scope or permissions).</b> This usually means one of the scopes the app requests (like <code style="background:#2b2d31;padding:1px 4px;border-radius:2px">messages.read</code> or <code style="background:#2b2d31;padding:1px 4px;border-radius:2px">rpc.voice.write</code>) requires Discord whitelisting that your personal app does not have. Try applying for RPC API access for your app in the Discord Developer Portal, or use a pre-approved app.';
+    } else if (text.includes('4007')) {
+      hint = '<b>Authorization timed out or was cancelled.</b> Click the button below to try again and make sure you click <b>Authorize</b> in the Discord popup within a few seconds.';
+    } else if (text.includes('4008')) {
+      hint = '<b>Invalid Origin (error 4008).</b> Your Discord app may have restricted RPC Origins. In the Discord Developer Portal, go to your app\'s <b>Rich Presence → Art Assets</b> or <b>RPC</b> settings and ensure Origins are not set (or include an empty Origin).';
+    } else if (text.includes('4011')) {
+      hint = '<b>Invalid client credentials (error 4011).</b> Reset your Client Secret in the Discord Developer Portal and paste the new value below.';
+    } else {
+      hint = '<b>Discord rejected the authorization.</b> ' + escapeHtmlFromText(text.substring(text.indexOf('Discord rejected')));
+    }
+    openSetupWizard(hint);
+    return;
+  }
+
+  // Legacy / fallback: token exchange HTTP failures
+  if (text.includes('Token exchange failed') || text.includes('invalid_grant')) {
+    var hint2;
+    if (text.includes('invalid_grant') || text.includes('Invalid "code"') || text.includes("Invalid \"code\"")) {
+      hint2 = '<b>Authorization failed: invalid grant.</b> Either your Client Secret is stale, or Discord sent back an error response we didn\'t catch. Try resetting the Client Secret in the Discord Developer Portal and pasting the new value below.';
+    } else if (text.includes('redirect_uri')) {
+      hint2 = '<b>Redirect URI mismatch.</b> Add <code style="background:#2b2d31;padding:1px 4px;border-radius:2px">http://localhost</code> as a Redirect URI on the OAuth2 page and click <b>Save Changes</b>, then retry.';
+    } else {
+      hint2 = '<b>Token exchange failed.</b> Double-check your Client ID and Secret below, then retry.';
+    }
+    openSetupWizard(hint2);
+    return;
+  }
+
+  if (text.includes('Authorization failed') && setupWaiting) {
+    setupShowError('Authorization was denied or cancelled in Discord. Click below to retry.');
+    return;
+  }
+}
+
+function escapeHtmlFromText(s) {
+  var d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
 }
 
 async function checkSetup() {
@@ -1023,6 +1112,10 @@ async function checkSetup() {
   if (!s.DiscordClientId || !s.DiscordClientSecret) {
     document.getElementById('setupWizard').style.display = 'flex';
     document.getElementById('console').style.display = 'none';
+  } else {
+    // Prefill in case user needs to re-open / fix
+    document.getElementById('setupClientId').value = s.DiscordClientId;
+    document.getElementById('setupClientSecret').value = s.DiscordClientSecret;
   }
 }
 

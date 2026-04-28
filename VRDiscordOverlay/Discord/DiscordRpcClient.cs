@@ -19,6 +19,8 @@ public class DiscordRpcClient : IDisposable
     private readonly SemaphoreSlim _writeLock = new(1, 1);
     private readonly ConcurrentDictionary<string, TaskCompletionSource<JObject?>> _pendingRequests = new();
     private readonly HashSet<string> _subscribedTextChannels = new();
+    private string? _lastExchangedCode;
+    private DateTime _lastExchangeTime;
 
     private const int OP_HANDSHAKE = 0;
     private const int OP_FRAME = 1;
@@ -34,6 +36,7 @@ public class DiscordRpcClient : IDisposable
     public event Action<RpcChannelData?>? OnVoiceChannelSelect;
     public event Action? OnReady;
     public event Action? OnDisconnected;
+    public event Action? OnAccessTokenInvalidated;
     public event Action<string>? OnError;
     public event Action<JObject>? OnMessageCreate;
     public event Action<JObject>? OnMessageUpdate;
@@ -416,13 +419,35 @@ public class DiscordRpcClient : IDisposable
 
     private async Task HandleAuthorizeAsync(RpcFrame frame)
     {
+        // Discord uses cmd="AUTHORIZE" for both success and error responses.
+        // An error response has evt="ERROR" and data.code = numeric error code (e.g. 4006),
+        // which looks like a short "code" field but is NOT a real OAuth code.
+        if (frame.Event == "ERROR")
+        {
+            var errCode = frame.Data?["code"]?.ToString() ?? "?";
+            var errMsg = frame.Data?["message"]?.ToString() ?? "Unknown error";
+            OnError?.Invoke($"Discord rejected the authorization (code {errCode}): {errMsg}");
+            return;
+        }
+
         if (frame.Data == null) return;
         var code = frame.Data["code"]?.ToString();
         if (string.IsNullOrEmpty(code))
         {
-            OnError?.Invoke("Authorization failed");
+            OnError?.Invoke("Authorization failed (no code returned). Make sure you clicked 'Authorize' in Discord.");
             return;
         }
+
+        // Real OAuth codes are ~30 chars. A short "code" is almost certainly an error code
+        // slipped past the ERROR check above — refuse to hit Discord with it.
+        if (code.Length < 20)
+        {
+            var msg = frame.Data?["message"]?.ToString();
+            OnError?.Invoke($"Authorization returned code='{code}' ({code.Length} chars) — this looks like a Discord error code, not an OAuth code. Full message: {msg ?? "(none)"}");
+            return;
+        }
+
+        ConsoleUI.Log($"Auth: received authorization code from Discord (len={code.Length})");
 
         var token = await ExchangeCodeForToken(code);
         if (token != null)
@@ -435,6 +460,7 @@ public class DiscordRpcClient : IDisposable
         {
             ConsoleUI.Log("Session expired, requesting new authorization...");
             _accessToken = null;
+            OnAccessTokenInvalidated?.Invoke();
             await AuthorizeAsync();
             return;
         }
@@ -443,6 +469,7 @@ public class DiscordRpcClient : IDisposable
         {
             ConsoleUI.Log("Authentication issue, requesting new authorization...");
             _accessToken = null;
+            OnAccessTokenInvalidated?.Invoke();
             await AuthorizeAsync();
             return;
         }
@@ -491,19 +518,41 @@ public class DiscordRpcClient : IDisposable
 
     private async Task<string?> ExchangeCodeForToken(string code)
     {
+        // Guard against duplicate code exchanges. OAuth2 codes are single-use,
+        // so a retry within a short window is almost always a bug (duplicate
+        // AUTHORIZE response handling) rather than a legitimate exchange.
+        if (code == _lastExchangedCode && (DateTime.UtcNow - _lastExchangeTime).TotalSeconds < 60)
+        {
+            ConsoleUI.Log("Auth: skipping duplicate code exchange (code already used this session)");
+            return null;
+        }
+        _lastExchangedCode = code;
+        _lastExchangeTime = DateTime.UtcNow;
+
+        // Diagnostic: log context WITHOUT leaking secrets (partials only)
+        var clientIdStart = _clientId.Length >= 6 ? _clientId[..6] : _clientId;
+        var secretStart = _clientSecret.Length >= 4 ? _clientSecret[..4] : _clientSecret;
+        ConsoleUI.Log($"Auth: exchanging code (len={code.Length}) client_id={clientIdStart}... secret={secretStart}... redirect=http://localhost");
+
         try
         {
             using var http = new HttpClient();
-            var response = await http.PostAsync("https://discord.com/api/oauth2/token",
-                new FormUrlEncodedContent(new Dictionary<string, string>
+            // Discord API requires a User-Agent header; .NET HttpClient does not set one by default.
+            http.DefaultRequestHeaders.UserAgent.ParseAdd("VRDiscordOverlay/1.0 (+https://github.com/Larsundso/SteamVR-Discord-Overlay)");
+
+            var request = new HttpRequestMessage(HttpMethod.Post, "https://discord.com/api/oauth2/token")
+            {
+                Content = new FormUrlEncodedContent(new Dictionary<string, string>
                 {
                     ["client_id"] = _clientId,
                     ["client_secret"] = _clientSecret,
                     ["grant_type"] = "authorization_code",
                     ["code"] = code,
                     ["redirect_uri"] = "http://localhost"
-                }));
+                })
+            };
 
+            var response = await http.SendAsync(request);
             var json = await response.Content.ReadAsStringAsync();
 
             if (!response.IsSuccessStatusCode)
@@ -515,9 +564,9 @@ public class DiscordRpcClient : IDisposable
             var data = JObject.Parse(json);
             return data["access_token"]?.ToString();
         }
-        catch
+        catch (Exception ex)
         {
-            OnError?.Invoke("Could not exchange authorization code");
+            OnError?.Invoke($"Token exchange request error: {ex.Message}");
             return null;
         }
     }

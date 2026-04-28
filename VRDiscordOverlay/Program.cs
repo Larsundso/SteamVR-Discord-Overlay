@@ -133,6 +133,12 @@ class Program
             }
         };
 
+        discord.OnAccessTokenInvalidated += () =>
+        {
+            settings.AccessToken = null;
+            SettingsManager.Save(settings);
+        };
+
         discord.OnReady += () =>
         {
             settings.AccessToken = discord.AccessToken;

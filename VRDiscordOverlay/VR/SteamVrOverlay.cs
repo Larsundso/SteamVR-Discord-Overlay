@@ -48,13 +48,43 @@ public class SteamVrOverlay : IDisposable
             return false;
         }
 
-        D3D11.D3D11CreateDevice(
+        FeatureLevel[] featureLevels =
+        {
+            FeatureLevel.Level_11_1,
+            FeatureLevel.Level_11_0,
+            FeatureLevel.Level_10_1,
+            FeatureLevel.Level_10_0,
+        };
+
+        var d3dResult = D3D11.D3D11CreateDevice(
             null,
             DriverType.Hardware,
             DeviceCreationFlags.BgraSupport,
-            Array.Empty<FeatureLevel>(),
+            featureLevels,
             out _d3dDevice,
             out _d3dContext);
+
+        if (d3dResult.Failure || _d3dDevice is null || _d3dContext is null)
+        {
+            ConsoleUI.Log($"D3D11 hardware device unavailable ({d3dResult}); falling back to WARP software renderer");
+            _d3dDevice?.Dispose(); _d3dDevice = null;
+            _d3dContext?.Dispose(); _d3dContext = null;
+
+            d3dResult = D3D11.D3D11CreateDevice(
+                null,
+                DriverType.Warp,
+                DeviceCreationFlags.BgraSupport,
+                featureLevels,
+                out _d3dDevice,
+                out _d3dContext);
+
+            if (d3dResult.Failure || _d3dDevice is null || _d3dContext is null)
+            {
+                ConsoleUI.Log($"D3D11 WARP fallback also failed ({d3dResult}). Cannot create overlay textures.");
+                return false;
+            }
+            ConsoleUI.Log("Using WARP software renderer for overlay textures");
+        }
 
         OpenVR.Overlay.SetOverlayWidthInMeters(_overlayHandle, _settings.OverlayWidth);
         OpenVR.Overlay.SetOverlayAlpha(_overlayHandle, _settings.OverlayOpacity);
